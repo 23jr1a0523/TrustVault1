@@ -1,68 +1,170 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Audit Logs | TrustVault</title>
-
+<title>Admin Audit Logs | TrustVault</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
-*{box-sizing:border-box;margin:0;padding:0}
-body{font-family:Arial,sans-serif;background:#f7f7fc;color:#252541}
-header{padding:22px 7%;background:white;display:flex;justify-content:space-between;border-bottom:1px solid #e9e7f3}
-.logo{font-size:23px;font-weight:bold;color:#635bdb}
-a{color:#635bdb;text-decoration:none;font-weight:bold}
-main{max-width:1100px;margin:40px auto;padding:0 22px}
-.tag{color:#7165d8;font-size:12px;font-weight:bold;letter-spacing:2px;margin-bottom:12px}
-h1{font-size:32px;margin-bottom:12px}
-p{color:#77788e;line-height:1.7}
-.hero{background:linear-gradient(120deg,#6659df,#8976ed);padding:26px;border-radius:16px;color:white;margin:25px 0}
-.hero h2{margin-bottom:10px}
-.hero p{color:#f0edff;font-size:14px}
-.toolbar{display:flex;justify-content:space-between;align-items:center;gap:15px;margin-bottom:18px}
-input{padding:12px;border:1px solid #e2e0ee;border-radius:9px;width:280px;max-width:100%;outline:none}
-input:focus{border-color:#8175e8}
-.panel{background:white;border:1px solid #e9e7f3;border-radius:15px;padding:18px;overflow-x:auto}
-table{width:100%;border-collapse:collapse;min-width:600px}
-th,td{text-align:left;padding:16px 12px;border-bottom:1px solid #f0eff6;font-size:13px}
-th{background:#faf9ff;color:#85849a;font-size:11px;letter-spacing:1px}
-td{color:#55556f}
-tbody tr:hover{background:#fcfbff}
-.badge{background:#efedff;color:#5d51cc;padding:7px 10px;border-radius:7px;font-weight:bold;font-size:11px}
-.empty{text-align:center;padding:35px}
-.empty h3{margin-bottom:10px}
-footer{text-align:center;padding:24px;color:#9292a5;font-size:12px}
-@media(max-width:600px){
-header{padding:18px 5%}
-main{margin-top:28px}
-h1{font-size:27px}
-.toolbar{align-items:stretch;flex-direction:column}
-input{width:100%}
-.panel{padding:10px}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+    font-family: 'Inter', Arial, sans-serif;
+    background: #0a0e17;
+    color: #f9fafb;
+    min-height: 100vh;
+}
+header {
+    padding: 20px 7%;
+    background: #0d131f;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #1f2937;
+}
+.logo {
+    font-size: 22px;
+    font-weight: 800;
+    color: #f9fafb;
+}
+.logo span { color: #10b981; }
+a {
+    color: #9ca3af;
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 14px;
+    transition: 0.2s;
+}
+a:hover { color: #10b981; }
+main {
+    max-width: 1200px;
+    margin: 40px auto;
+    padding: 0 24px 60px;
+}
+.tag {
+    color: #10b981;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    margin-bottom: 8px;
+    text-transform: uppercase;
+}
+h1 { font-size: 30px; font-weight: 800; margin-bottom: 10px; }
+p.desc { color: #9ca3af; font-size: 14px; margin-bottom: 24px; }
+.hero {
+    background: linear-gradient(135deg, #111827, #162438);
+    border: 1px solid #1f2937;
+    padding: 24px 28px;
+    border-radius: 16px;
+    margin-bottom: 25px;
+}
+.hero h2 { font-size: 18px; margin-bottom: 6px; }
+.hero p { color: #9ca3af; font-size: 13px; }
+.toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 15px;
+    margin-bottom: 18px;
+    flex-wrap: wrap;
+}
+input {
+    padding: 10px 14px;
+    border: 1px solid #1f2937;
+    border-radius: 8px;
+    background: #111827;
+    color: #f9fafb;
+    width: 280px;
+    max-width: 100%;
+    outline: none;
+    font-size: 13px;
+}
+input:focus { border-color: #10b981; }
+.panel {
+    background: #111827;
+    border: 1px solid #1f2937;
+    border-radius: 14px;
+    padding: 16px;
+    overflow-x: auto;
+}
+table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 750px;
+}
+th, td {
+    text-align: left;
+    padding: 14px 12px;
+    border-bottom: 1px solid #1f2937;
+    font-size: 12.5px;
+}
+th {
+    background: #0d131f;
+    color: #9ca3af;
+    font-size: 11px;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+}
+td { color: #d1d5db; }
+tbody tr:hover { background: rgba(255, 255, 255, 0.02); }
+.badge-action {
+    background: #1f2937;
+    color: #10b981;
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-weight: 700;
+    font-size: 11px;
+}
+.badge-status-success {
+    background: rgba(16, 185, 129, 0.15);
+    color: #34d399;
+    padding: 3px 7px;
+    border-radius: 5px;
+    font-size: 10.5px;
+    font-weight: 700;
+}
+.badge-status-denied {
+    background: rgba(239, 68, 68, 0.15);
+    color: #f87171;
+    padding: 3px 7px;
+    border-radius: 5px;
+    font-size: 10.5px;
+    font-weight: 700;
+}
+.empty {
+    text-align: center;
+    padding: 40px;
+    color: #9ca3af;
+}
+footer {
+    text-align: center;
+    padding: 24px;
+    color: #6b7280;
+    font-size: 12px;
+    border-top: 1px solid #1f2937;
 }
 </style>
 </head>
-
 <body>
 <header>
-    <div class="logo">TrustVault</div>
-    <a href="{{ url_for('dashboard') }}">← Dashboard</a>
+    <div class="logo">🔐 Trust<span>Vault</span></div>
+    <a href="{{ url_for('dashboard') }}">← Back to Dashboard</a>
 </header>
 
 <main>
-    <div class="tag">SECURITY & ACCOUNTABILITY</div>
+    <div class="tag">Security &amp; Accountability</div>
     <h1>Audit Logs</h1>
-    <p>Monitor document activities and review recorded actions.</p>
+    <p class="desc">Admin panel: monitor document actions, authentication, and access enforcement events.</p>
 
     <section class="hero">
-        <h2>Your Activity. Recorded.</h2>
-        <p>Review users, document actions and timestamps in your TrustVault workspace.</p>
+        <h2>Immutable System Activity Ledger</h2>
+        <p>Tracks uploads, downloads, sharing grants, revocations, deletions, and access denial attempts with IP addresses.</p>
     </section>
 
     <div class="toolbar">
-        <h2>Activity History</h2>
+        <h2>Recorded Activity</h2>
         {% if logs %}
-        <input id="search" type="search" placeholder="🔍 Search activity...">
+        <input id="search" type="search" placeholder="🔍 Filter logs by user, action, IP...">
         {% endif %}
     </div>
 
@@ -71,50 +173,61 @@ input{width:100%}
         <table>
             <thead>
                 <tr>
-                    <th>USER</th>
-                    <th>ACTION</th>
-                    <th>DOCUMENT</th>
-                    <th>DATE & TIME</th>
+                    <th>User</th>
+                    <th>Action</th>
+                    <th>Status</th>
+                    <th>Document</th>
+                    <th>IP Address</th>
+                    <th>Details</th>
+                    <th>Date &amp; Time</th>
                 </tr>
             </thead>
             <tbody>
             {% for log in logs %}
                 <tr class="log-row">
-                    <td>{{ log["username"] or "Unknown" }}</td>
-                    <td><span class="badge">{{ log["action"] }}</span></td>
+                    <td><strong>{{ log["username"] or "Anonymous / System" }}</strong></td>
+                    <td><span class="badge-action">{{ log["action"] }}</span></td>
+                    <td>
+                        {% if log["status"] == "SUCCESS" %}
+                            <span class="badge-status-success">SUCCESS</span>
+                        {% else %}
+                            <span class="badge-status-denied">{{ log["status"] or "DENIED" }}</span>
+                        {% endif %}
+                    </td>
                     <td>{{ log["document_name"] or "-" }}</td>
-                    <td>{{ log["created_at"] or "-" }}</td>
+                    <td style="font-family:monospace;font-size:11px;">{{ log["ip_address"] or "-" }}</td>
+                    <td style="color:#9ca3af;font-size:11.5px;">{{ log["details"] or "-" }}</td>
+                    <td style="white-space:nowrap;font-size:11.5px;">{{ log["created_at"] or "-" }}</td>
                 </tr>
             {% endfor %}
             </tbody>
         </table>
-        <p id="emptySearch" style="display:none;padding:20px;text-align:center">
-            No matching activities found.
+        <p id="emptySearch" style="display:none;padding:24px;text-align:center;color:#9ca3af;">
+            No matching logs found.
         </p>
     {% else %}
         <div class="empty">
-            <h3>📋 No audit logs available</h3>
-            <p>Document activities will appear here when recorded.</p>
+            <h3>📋 No audit logs recorded yet</h3>
+            <p>Actions like uploads, logins, downloads, and permission updates will appear here.</p>
         </div>
     {% endif %}
     </section>
 </main>
 
-<footer>TrustVault · Secure Document Sharing</footer>
+<footer>TrustVault · Confidential Access &amp; Compliance Logging</footer>
 
 <script>
 const search = document.getElementById("search");
 if (search) {
     search.addEventListener("input", function () {
+        const q = this.value.toLowerCase().trim();
         let count = 0;
         document.querySelectorAll(".log-row").forEach(row => {
-            const match = row.textContent.toLowerCase()
-                .includes(this.value.toLowerCase().trim());
+            const match = row.textContent.toLowerCase().includes(q);
             row.style.display = match ? "" : "none";
             if (match) count++;
         });
-        document.getElementById("emptySearch").style.display =
-            count ? "none" : "block";
+        document.getElementById("emptySearch").style.display = count ? "none" : "block";
     });
 }
 </script>

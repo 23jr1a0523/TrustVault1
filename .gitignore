@@ -1,6 +1,17 @@
 .env
+.env.*
+!.env.example
 .venv/
+env/
+venv/
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
+*.db
+*.sqlite3
 trustvault.db
 private_uploads/
+.pytest_cache/
+.coverage
+htmlcov/

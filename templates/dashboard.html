@@ -394,6 +394,10 @@
                 AI Assistant
             </a>
 
+            <a class="nav-link" href="{{ url_for('profile') }}">
+                <span class="nav-icon">👤</span>
+                Profile &amp; Security
+            </a>
             {% if session.get('role') == 'admin' %}
             <a class="nav-link" href="{{ url_for('admin_users') }}">
                 <span class="nav-icon">👥</span>
@@ -448,34 +452,34 @@
 
                     <div class="status-grid">
                         <div class="status-item">
-                            <div class="status-icon">📄</div>
+                            <div class="status-icon">📁</div>
                             <div>
-                                <strong>Secure Storage</strong>
-                                <small>Private file storage</small>
+                                <strong>{{ doc_count }} Owned Documents</strong>
+                                <small>In your private vault</small>
                             </div>
                         </div>
 
                         <div class="status-item">
-                            <div class="status-icon">🛡️</div>
+                            <div class="status-icon">👥</div>
                             <div>
-                                <strong>Access Control</strong>
-                                <small>Owner-based checks</small>
+                                <strong>{{ shared_count }} Shared With You</strong>
+                                <small>Viewer access granted</small>
                             </div>
                         </div>
 
                         <div class="status-item">
                             <div class="status-icon">🔏</div>
                             <div>
-                                <strong>Integrity Check</strong>
-                                <small>SHA-256 verification</small>
+                                <strong>SHA-256 Hashing</strong>
+                                <small>Tamper-proof integrity</small>
                             </div>
                         </div>
 
                         <div class="status-item">
-                            <div class="status-icon">📊</div>
+                            <div class="status-icon">🛡️</div>
                             <div>
-                                <strong>Activity Tracking</strong>
-                                <small>Audit records</small>
+                                <strong>Role: {{ session.get('role', 'user')|upper }}</strong>
+                                <small>Strict server authorization</small>
                             </div>
                         </div>
                     </div>

@@ -2,3 +2,5 @@ Flask
 gunicorn
 google-genai
 python-dotenv
+supabase
+psycopg2-binary

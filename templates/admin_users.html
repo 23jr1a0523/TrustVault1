@@ -1,80 +1,182 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Registered Users | TrustVault</title>
+    <title>Registered Users | TrustVault Admin</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
+        :root {
+            --bg-dark: #0a0e17;
+            --card-bg: #111827;
+            --card-border: #1f2937;
+            --emerald: #10b981;
+            --text-main: #f9fafb;
+            --text-muted: #9ca3af;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
         body {
-            margin: 0;
-            padding: 30px;
-            font-family: Arial, sans-serif;
-            background: #0f172a;
-            color: #f8fafc;
+            font-family: 'Inter', Arial, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-main);
+            min-height: 100vh;
         }
+
+        header {
+            padding: 20px 7%;
+            background: #0d131f;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--card-border);
+        }
+
+        .logo { font-size: 22px; font-weight: 800; }
+        .logo span { color: var(--emerald); }
+
+        header a {
+            color: var(--text-muted);
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 14px;
+        }
+        header a:hover { color: var(--emerald); }
+
         .container {
-            max-width: 1000px;
-            margin: auto;
+            max-width: 1050px;
+            margin: 40px auto;
+            padding: 0 24px 60px;
         }
-        h1 { color: #38bdf8; }
+
+        .eyebrow {
+            color: var(--emerald);
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+        }
+
+        h1 { font-size: 30px; font-weight: 800; margin-bottom: 8px; }
+        p.subtitle { color: var(--text-muted); font-size: 14px; margin-bottom: 26px; }
+
         .card {
-            background: #1e293b;
-            padding: 22px;
-            border-radius: 12px;
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            padding: 24px;
+            border-radius: 14px;
             overflow-x: auto;
         }
+
+        .stats-badge {
+            display: inline-block;
+            background: rgba(16, 185, 129, 0.1);
+            color: var(--emerald);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 12.5px;
+            font-weight: 700;
+            margin-bottom: 18px;
+        }
+
         table {
             width: 100%;
             border-collapse: collapse;
-            margin-top: 15px;
+            min-width: 600px;
         }
+
         th, td {
-            padding: 14px;
-            border-bottom: 1px solid #334155;
+            padding: 14px 12px;
+            border-bottom: 1px solid var(--card-border);
             text-align: left;
+            font-size: 13px;
         }
-        th { color: #38bdf8; }
-        .role {
-            background: #334155;
-            padding: 5px 10px;
+
+        th {
+            background: #0d131f;
+            color: var(--text-muted);
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+        }
+
+        td { color: #d1d5db; }
+
+        .role-user {
+            background: #1f2937;
+            color: #9ca3af;
+            padding: 4px 10px;
             border-radius: 6px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
         }
-        a {
-            display: inline-block;
-            margin-top: 20px;
-            color: #38bdf8;
-            text-decoration: none;
+
+        .role-admin {
+            background: rgba(16, 185, 129, 0.15);
+            color: var(--emerald);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
         }
+
         .empty {
             text-align: center;
-            padding: 25px;
+            padding: 30px;
+            color: var(--text-muted);
+        }
+
+        footer {
+            text-align: center;
+            padding: 24px;
+            color: #6b7280;
+            font-size: 12px;
+            border-top: 1px solid var(--card-border);
         }
     </style>
 </head>
 <body>
+    <header>
+        <div class="logo">🔐 Trust<span>Vault</span></div>
+        <a href="{{ url_for('dashboard') }}">← Back to Dashboard</a>
+    </header>
+
     <div class="container">
-        <h1>TrustVault — Registered Users</h1>
-        <p>Admin panel: view registered accounts and roles.</p>
+        <div class="eyebrow">Administration &amp; User Directory</div>
+        <h1>Registered Users</h1>
+        <p class="subtitle">Review user accounts, assigned roles, and registration dates.</p>
 
         <div class="card">
-            <h2>Total Users: {{ users|length }}</h2>
+            <span class="stats-badge">👥 Total Registered Accounts: {{ users|length }}</span>
 
             <table>
                 <thead>
                     <tr>
                         <th>ID</th>
                         <th>Username</th>
-                        <th>Role</th>
-                        <th>Registered At</th>
+                        <th>Assigned Role</th>
+                        <th>Registered Timestamp</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for user in users %}
                     <tr>
-                        <td>{{ user["id"] }}</td>
-                        <td>{{ user["username"] }}</td>
-                        <td><span class="role">{{ user["role"] }}</span></td>
+                        <td style="color:var(--text-muted);">#{{ user["id"] }}</td>
+                        <td><strong>{{ user["username"] }}</strong></td>
+                        <td>
+                            {% if user["role"] == "admin" %}
+                                <span class="role-admin">Admin</span>
+                            {% else %}
+                                <span class="role-user">User / Owner</span>
+                            {% endif %}
+                        </td>
                         <td>{{ user["created_at"] }}</td>
                     </tr>
                     {% else %}
@@ -85,8 +187,10 @@
                 </tbody>
             </table>
         </div>
-
-        <a href="/dashboard">← Back to Dashboard</a>
     </div>
+
+    <footer>
+        TrustVault · Enterprise User Management
+    </footer>
 </body>
 </html>
