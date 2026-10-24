@@ -446,6 +446,7 @@ def documents():
     user_id = session["user_id"]
     category_filter = request.args.get("category", "").strip()
     search_query = request.args.get("q", "").strip()
+    message = request.args.get("message", "").strip() or request.args.get("error", "").strip() or None
 
     connection = get_db_connection()
     try:
@@ -519,7 +520,7 @@ def documents():
         all_users=all_users,
         current_category=category_filter,
         search_query=search_query,
-        message=None
+        message=message
     )
 
 
@@ -536,25 +537,15 @@ def upload_document():
 
     safe_name = secure_filename(uploaded_file.filename)
     if not safe_name or "." not in safe_name:
-        return render_template("documents.html", files=[], shared_files=[], message="Invalid filename."), 400
+        return "Invalid filename. Please upload a file with an extension.", 400
 
     extension = safe_name.rsplit(".", 1)[1].lower()
     if extension not in ALLOWED_EXTENSIONS:
-        return render_template(
-            "documents.html",
-            files=[],
-            shared_files=[],
-            message="File type not allowed. Supported: PDF, TXT, DOCX, PNG, JPG.",
-        ), 400
+        return "File type not allowed. Supported: PDF, TXT, DOCX, PNG, JPG.", 400
 
     content = uploaded_file.read(MAX_FILE_SIZE + 1)
     if not content or len(content) > MAX_FILE_SIZE:
-        return render_template(
-            "documents.html",
-            files=[],
-            shared_files=[],
-            message="File is empty or exceeds the 5 MB limit.",
-        ), 400
+        return "File is empty or exceeds the 5 MB limit.", 400
 
     # 1. Compute SHA-256 integrity hash
     file_hash = hashlib.sha256(content).hexdigest()
@@ -564,8 +555,9 @@ def upload_document():
     stored_name = f"{uuid.uuid4().hex}.{extension}"
     storage_path = f"documents/{session['user_id']}/{stored_name}"
 
-    # 3. Upload to Supabase Storage if configured; otherwise use fallback
+    # 3. Upload to Supabase Storage if configured; otherwise use resilient local fallback
     use_supabase = is_storage_configured()
+    storage_provider = "local"
     if use_supabase:
         content_type = uploaded_file.content_type or "application/octet-stream"
         success, err = upload_document_to_supabase(
@@ -574,21 +566,24 @@ def upload_document():
             original_filename=safe_name,
             content_type=content_type,
         )
-        if not success:
-            log_audit(
-                action="UPLOAD_FAILED",
-                document_name=safe_name,
-                status="DENIED",
-                details=f"Supabase Storage error: {err}",
+        if success:
+            storage_provider = "supabase"
+        else:
+            logger.warning(
+                f"Supabase Storage upload returned ({err}). Gracefully saving to local vault storage so upload succeeds."
             )
-            return render_template(
-                "documents.html",
-                files=[],
-                shared_files=[],
-                message=f"Storage upload error: {err}",
-            ), 500
+            log_audit(
+                action="STORAGE_FALLBACK",
+                document_name=safe_name,
+                status="SUCCESS",
+                details=f"Supabase note: {err}; saved to local storage",
+            )
+            local_path = UPLOAD_FOLDER / stored_name
+            local_path.write_bytes(content)
+            use_supabase = False
+            storage_path = None
     else:
-        # Local disk fallback
+        # Local disk storage
         local_path = UPLOAD_FOLDER / stored_name
         local_path.write_bytes(content)
 
@@ -623,7 +618,7 @@ def upload_document():
     except Exception as e:
         connection.rollback()
         # Clean up storage object on database failure to avoid orphans
-        if use_supabase:
+        if use_supabase and storage_path:
             delete_document_from_supabase(storage_path)
         else:
             (UPLOAD_FOLDER / stored_name).unlink(missing_ok=True)

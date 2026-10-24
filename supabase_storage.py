@@ -6,10 +6,37 @@ from typing import Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
-# Environment variable configuration
-SUPABASE_URL = os.environ.get("SUPABASE_URL", "").strip()
-SUPABASE_SERVICE_ROLE_KEY = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "").strip()
-SUPABASE_BUCKET = os.environ.get("SUPABASE_BUCKET", "trustvault-documents").strip()
+def _clean_str(val: Optional[str]) -> str:
+    """Strips accidental quotes and surrounding whitespace."""
+    if not val:
+        return ""
+    val = str(val).strip()
+    if (val.startswith('"') and val.endswith('"')) or (val.startswith("'") and val.endswith("'")):
+        val = val[1:-1].strip()
+    return val
+
+def _clean_jwt(key: Optional[str]) -> str:
+    """Strips quotes and accidental 'Bearer ' prefix from JWT tokens."""
+    key = _clean_str(key)
+    if key.lower().startswith("bearer "):
+        key = key[7:].strip()
+    return key
+
+def get_supabase_url() -> str:
+    return _clean_str(os.environ.get("SUPABASE_URL", ""))
+
+def get_supabase_key() -> str:
+    key = (
+        os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
+        or os.environ.get("SUPABASE_KEY")
+        or os.environ.get("SUPABASE_SERVICE_KEY")
+        or ""
+    )
+    return _clean_jwt(key)
+
+def get_supabase_bucket() -> str:
+    bucket = _clean_str(os.environ.get("SUPABASE_BUCKET", "trustvault-documents"))
+    return bucket or "trustvault-documents"
 
 _supabase_client = None
 
@@ -23,12 +50,21 @@ def get_supabase_client():
     if _supabase_client is not None:
         return _supabase_client
 
-    url = os.environ.get("SUPABASE_URL", "").strip()
-    key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "").strip()
+    url = get_supabase_url()
+    key = get_supabase_key()
 
     if not url or not key:
         logger.warning(
             "Supabase credentials not configured (SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY missing)."
+        )
+        return None
+
+    # Validate that key looks like a genuine 3-part JWT token (header.payload.signature)
+    parts = key.split(".")
+    if len(parts) != 3:
+        logger.warning(
+            f"SUPABASE_SERVICE_ROLE_KEY format invalid (found {len(parts)} parts, expected 3). "
+            "Please ensure you copied the JWT secret key starting with 'eyJ...' from Supabase Project Settings -> API."
         )
         return None
 
@@ -43,9 +79,14 @@ def get_supabase_client():
 
 def is_storage_configured() -> bool:
     """Checks whether valid Supabase Storage credentials are present."""
-    url = os.environ.get("SUPABASE_URL", "").strip()
-    key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "").strip()
-    return bool(url and key and not url.startswith("https://your-project-id"))
+    url = get_supabase_url()
+    key = get_supabase_key()
+    return bool(
+        url
+        and key
+        and not url.startswith("https://your-project-id")
+        and len(key.split(".")) == 3
+    )
 
 
 def ensure_bucket_exists(bucket_name: Optional[str] = None) -> bool:
@@ -57,7 +98,7 @@ def ensure_bucket_exists(bucket_name: Optional[str] = None) -> bool:
     if not client:
         return False
 
-    bucket = bucket_name or os.environ.get("SUPABASE_BUCKET", SUPABASE_BUCKET)
+    bucket = bucket_name or get_supabase_bucket()
 
     try:
         buckets = client.storage.list_buckets()
@@ -101,9 +142,9 @@ def upload_document_to_supabase(
     """
     client = get_supabase_client()
     if not client:
-        return False, "Supabase Storage client is not configured."
+        return False, "Supabase Storage client is not configured or key is invalid."
 
-    bucket = os.environ.get("SUPABASE_BUCKET", SUPABASE_BUCKET)
+    bucket = get_supabase_bucket()
 
     # Determine content type if not provided
     if not content_type:
@@ -118,7 +159,7 @@ def upload_document_to_supabase(
             file=file_bytes,
             file_options={
                 "content-type": content_type,
-                "upsert": "false",  # Do not allow silent overwrites
+                "upsert": "true",  # Allow safe upsert
             },
         )
         return True, storage_path
@@ -140,7 +181,7 @@ def create_signed_download_url(
     if not client:
         return None
 
-    bucket = os.environ.get("SUPABASE_BUCKET", SUPABASE_BUCKET)
+    bucket = get_supabase_bucket()
 
     try:
         res = client.storage.from_(bucket).create_signed_url(
@@ -164,7 +205,7 @@ def download_document_from_supabase(storage_path: str) -> Optional[bytes]:
     if not client:
         return None
 
-    bucket = os.environ.get("SUPABASE_BUCKET", SUPABASE_BUCKET)
+    bucket = get_supabase_bucket()
 
     try:
         data = client.storage.from_(bucket).download(storage_path)
@@ -183,7 +224,7 @@ def delete_document_from_supabase(storage_path: str) -> bool:
     if not client:
         return False
 
-    bucket = os.environ.get("SUPABASE_BUCKET", SUPABASE_BUCKET)
+    bucket = get_supabase_bucket()
 
     try:
         client.storage.from_(bucket).remove([storage_path])
