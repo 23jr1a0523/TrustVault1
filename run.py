@@ -230,7 +230,11 @@ def register():
             except Exception as e:
                 connection.rollback()
                 logger.error(f"Registration error: {e}")
-                error = "Registration failed. Please try again."
+                err_str = str(e).lower()
+                if "unique" in err_str or "duplicate" in err_str:
+                    error = "Username is already taken. Please choose another username."
+                else:
+                    error = f"Registration notice: {str(e)[:120]}"
                 log_audit(action="REGISTER_FAILED", status="DENIED", details=f"Registration failed for {username}: {str(e)}")
 
             finally:
@@ -259,7 +263,13 @@ def login():
         finally:
             connection.close()
 
-        if user and check_password_hash(user["password_hash"], password):
+        if not user:
+            log_audit(action="LOGIN_FAILED", status="DENIED", details=f"Username not found: {username}")
+            error = f"Username '{username}' not found. Please click 'Create an account' below to register first, or use demo / Password123!"
+        elif not check_password_hash(user["password_hash"], password):
+            log_audit(action="LOGIN_FAILED", status="DENIED", details=f"Wrong password for: {username}")
+            error = "Incorrect password. Please verify and try again."
+        else:
             session.clear()
             session.permanent = True
             uid = user["id"] if ("id" in user.keys() and user["id"] is not None) else user[0]
@@ -270,9 +280,6 @@ def login():
 
             log_audit(action="LOGIN", status="SUCCESS", details=f"User logged in: {username}")
             return redirect(url_for("dashboard"))
-
-        log_audit(action="LOGIN_FAILED", status="DENIED", details=f"Failed login attempt for: {username}")
-        error = "Invalid username or password. Please verify and try again."
 
     return render_template("login.html", error=error)
 

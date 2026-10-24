@@ -227,6 +227,25 @@ def init_db():
             if "role" not in existing_user_cols:
                 conn.execute("ALTER TABLE users ADD COLUMN role TEXT DEFAULT 'user'")
 
+        # Seed default test users if they do not exist
+        try:
+            from werkzeug.security import generate_password_hash
+            admin_check = conn.execute("SELECT id FROM users WHERE LOWER(username) = 'admin'").fetchone()
+            if not admin_check:
+                conn.execute(
+                    "INSERT INTO users (username, password_hash, role) VALUES (?, ?, 'admin')",
+                    ("admin", generate_password_hash("AdminPassword123!"))
+                )
+
+            demo_check = conn.execute("SELECT id FROM users WHERE LOWER(username) = 'demo'").fetchone()
+            if not demo_check:
+                conn.execute(
+                    "INSERT INTO users (username, password_hash, role) VALUES (?, ?, 'user')",
+                    ("demo", generate_password_hash("Password123!"))
+                )
+        except Exception as seed_err:
+            logger.warning(f"Note on seeding default accounts: {seed_err}")
+
         conn.commit()
     except Exception as e:
         conn.rollback()

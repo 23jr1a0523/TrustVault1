@@ -245,6 +245,12 @@
             </div>
         {% endif %}
 
+        <div style="background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.25); border-radius: 12px; padding: 12px 16px; margin-bottom: 22px; font-size: 13px;">
+            <div style="font-weight: 700; color: #10b981; margin-bottom: 4px;">💡 Demo Credentials for Instant Login:</div>
+            <div style="color: #d1d5db;">User: <strong style="color: #fff;">demo</strong> &nbsp;|&nbsp; Password: <strong style="color: #fff;">Password123!</strong></div>
+            <div style="color: #9ca3af; font-size: 11.5px; margin-top: 3px;">Admin: <strong style="color: #fff;">admin</strong> &nbsp;|&nbsp; Password: <strong style="color: #fff;">AdminPassword123!</strong></div>
+        </div>
+
         <form method="POST" action="/login">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
