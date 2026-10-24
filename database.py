@@ -190,9 +190,18 @@ def init_db():
                 )
             """)
 
-        # Backward compatibility column migrations for existing SQLite databases
-        if not use_pg:
-            # Check and add missing columns to documents
+        # Backward compatibility column migrations for existing databases
+        if use_pg:
+            # PostgreSQL column migrations
+            conn.execute("ALTER TABLE documents ADD COLUMN IF NOT EXISTS storage_path TEXT")
+            conn.execute("ALTER TABLE documents ADD COLUMN IF NOT EXISTS file_size INTEGER DEFAULT 0")
+            conn.execute("ALTER TABLE documents ADD COLUMN IF NOT EXISTS category VARCHAR(50) DEFAULT 'General'")
+            conn.execute("ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'SUCCESS'")
+            conn.execute("ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS ip_address VARCHAR(45)")
+            conn.execute("ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS details TEXT")
+            conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS role VARCHAR(20) DEFAULT 'user'")
+        else:
+            # Check and add missing columns to documents in SQLite
             cursor = conn.execute("PRAGMA table_info(documents)")
             existing_doc_cols = [row["name"] for row in cursor.fetchall()]
             if "storage_path" not in existing_doc_cols:
@@ -202,7 +211,7 @@ def init_db():
             if "category" not in existing_doc_cols:
                 conn.execute("ALTER TABLE documents ADD COLUMN category TEXT DEFAULT 'General'")
 
-            # Check and add missing columns to audit_logs
+            # Check and add missing columns to audit_logs in SQLite
             cursor = conn.execute("PRAGMA table_info(audit_logs)")
             existing_audit_cols = [row["name"] for row in cursor.fetchall()]
             if "status" not in existing_audit_cols:
@@ -211,6 +220,12 @@ def init_db():
                 conn.execute("ALTER TABLE audit_logs ADD COLUMN ip_address TEXT")
             if "details" not in existing_audit_cols:
                 conn.execute("ALTER TABLE audit_logs ADD COLUMN details TEXT")
+
+            # Check and add missing role column to users in SQLite
+            cursor = conn.execute("PRAGMA table_info(users)")
+            existing_user_cols = [row["name"] for row in cursor.fetchall()]
+            if "role" not in existing_user_cols:
+                conn.execute("ALTER TABLE users ADD COLUMN role TEXT DEFAULT 'user'")
 
         conn.commit()
     except Exception as e:

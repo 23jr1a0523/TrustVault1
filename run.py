@@ -623,12 +623,13 @@ def upload_document():
         else:
             (UPLOAD_FOLDER / stored_name).unlink(missing_ok=True)
         log_audit(action="UPLOAD_FAILED", document_name=safe_name, status="FAILED", details=str(e))
-        raise
+        logger.error(f"Upload insert failed: {e}")
+        return redirect(url_for("documents", error=f"Upload database error: {str(e)[:120]}"))
 
     finally:
         connection.close()
 
-    return redirect(url_for("documents"))
+    return redirect(url_for("documents", message="Document uploaded and cryptographically secured with SHA-256!"))
 
 
 # ---------------- DOWNLOAD DOCUMENT (AUTHENTICATED & VERIFIED) ----------------
