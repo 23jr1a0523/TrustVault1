@@ -213,13 +213,14 @@ def register():
 
                     # Automatically log in the user and redirect to dashboard
                     new_user = connection.execute(
-                        "SELECT * FROM users WHERE LOWER(username) = LOWER(?)",
+                        "SELECT id, username, role FROM users WHERE LOWER(username) = LOWER(?)",
                         (username,),
                     ).fetchone()
 
                     session.clear()
                     session.permanent = True
-                    session["user_id"] = new_user["id"]
+                    uid = new_user["id"] if ("id" in new_user.keys() and new_user["id"] is not None) else new_user[0]
+                    session["user_id"] = int(uid)
                     session["username"] = new_user["username"]
                     session["role"] = new_user["role"]
                     generate_csrf_token()
@@ -252,7 +253,7 @@ def login():
         try:
             # Case-insensitive query handles any mobile capitalization
             user = connection.execute(
-                "SELECT * FROM users WHERE LOWER(username) = LOWER(?)",
+                "SELECT id, username, password_hash, role FROM users WHERE LOWER(username) = LOWER(?)",
                 (username,),
             ).fetchone()
         finally:
@@ -261,7 +262,8 @@ def login():
         if user and check_password_hash(user["password_hash"], password):
             session.clear()
             session.permanent = True
-            session["user_id"] = user["id"]
+            uid = user["id"] if ("id" in user.keys() and user["id"] is not None) else user[0]
+            session["user_id"] = int(uid)
             session["username"] = user["username"]
             session["role"] = user["role"]
             generate_csrf_token()
@@ -322,9 +324,25 @@ def profile():
 @app.route("/dashboard")
 @login_required
 def dashboard():
+    user_id = session.get("user_id")
+    if not user_id:
+        username = session.get("username")
+        if username:
+            conn = get_db_connection()
+            try:
+                u = conn.execute("SELECT id FROM users WHERE LOWER(username) = LOWER(?)", (username,)).fetchone()
+                if u:
+                    uid = u["id"] if ("id" in u.keys() and u["id"] is not None) else u[0]
+                    user_id = int(uid)
+                    session["user_id"] = user_id
+            finally:
+                conn.close()
+
+    if not user_id:
+        return redirect(url_for("login"))
+
     conn = get_db_connection()
     try:
-        user_id = session["user_id"]
         is_admin = session.get("role") == "admin"
 
         # Count owned documents
@@ -443,7 +461,23 @@ def ai_chat():
 @app.route("/documents")
 @login_required
 def documents():
-    user_id = session["user_id"]
+    user_id = session.get("user_id")
+    if not user_id:
+        username = session.get("username")
+        if username:
+            conn = get_db_connection()
+            try:
+                u = conn.execute("SELECT id FROM users WHERE LOWER(username) = LOWER(?)", (username,)).fetchone()
+                if u:
+                    uid = u["id"] if ("id" in u.keys() and u["id"] is not None) else u[0]
+                    user_id = int(uid)
+                    session["user_id"] = user_id
+            finally:
+                conn.close()
+
+    if not user_id:
+        return redirect(url_for("login"))
+
     category_filter = request.args.get("category", "").strip()
     search_query = request.args.get("q", "").strip()
     message = request.args.get("message", "").strip() or request.args.get("error", "").strip() or None
@@ -529,6 +563,23 @@ def documents():
 @app.route("/documents/upload", methods=["POST"])
 @login_required
 def upload_document():
+    user_id = session.get("user_id")
+    if not user_id:
+        username = session.get("username")
+        if username:
+            conn = get_db_connection()
+            try:
+                u = conn.execute("SELECT id FROM users WHERE LOWER(username) = LOWER(?)", (username,)).fetchone()
+                if u:
+                    uid = u["id"] if ("id" in u.keys() and u["id"] is not None) else u[0]
+                    user_id = int(uid)
+                    session["user_id"] = user_id
+            finally:
+                conn.close()
+
+    if not user_id:
+        return redirect(url_for("login"))
+
     uploaded_file = request.files.get("document")
     category = request.form.get("category", "General").strip() or "General"
 
@@ -553,7 +604,7 @@ def upload_document():
 
     # 2. Server-generated unique object path and filename
     stored_name = f"{uuid.uuid4().hex}.{extension}"
-    storage_path = f"documents/{session['user_id']}/{stored_name}"
+    storage_path = f"documents/{user_id}/{stored_name}"
 
     # 3. Upload to Supabase Storage if configured; otherwise use resilient local fallback
     use_supabase = is_storage_configured()
@@ -597,7 +648,7 @@ def upload_document():
             VALUES (?, ?, ?, ?, ?, ?, ?)
             """,
             (
-                session["user_id"],
+                user_id,
                 safe_name,
                 stored_name,
                 storage_path,
