@@ -1,12 +1,25 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>File Integrity | TrustVault</title>
+    <title>File Integrity | TrustVault — Secure Document Management</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
     <style>
+        :root {
+            --bg-dark: #0a0e17;
+            --card-bg: #111827;
+            --card-border: #1f2937;
+            --card-hover: #172236;
+            --emerald: #10b981;
+            --emerald-hover: #059669;
+            --emerald-glow: rgba(16, 185, 129, 0.2);
+            --text-main: #f9fafb;
+            --text-muted: #9ca3af;
+        }
+
         * {
             box-sizing: border-box;
             margin: 0;
@@ -14,100 +27,129 @@
         }
 
         body {
-            font-family: Arial, sans-serif;
-            background: #f7f7fc;
-            color: #252541;
+            font-family: 'Inter', Arial, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-main);
+            min-height: 100vh;
         }
 
         nav {
             height: 72px;
             padding: 0 7%;
-            background: #ffffff;
-            border-bottom: 1px solid #e9e7f3;
+            background: #0d131f;
+            border-bottom: 1px solid var(--card-border);
             display: flex;
             align-items: center;
             justify-content: space-between;
         }
 
         .brand {
-            font-size: 23px;
-            font-weight: bold;
-            color: #635bdb;
+            font-size: 22px;
+            font-weight: 800;
+            color: var(--text-main);
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
 
+        .brand span { color: var(--emerald); }
+
         nav a {
-            color: #635bdb;
+            color: var(--text-muted);
             text-decoration: none;
             font-weight: 600;
+            font-size: 14px;
+            transition: color 0.2s;
+        }
+
+        nav a:hover {
+            color: var(--emerald);
         }
 
         main {
-            max-width: 1050px;
-            margin: 42px auto;
-            padding: 0 22px 40px;
+            max-width: 1100px;
+            margin: 40px auto;
+            padding: 0 24px 60px;
         }
 
         .eyebrow {
-            color: #7165d8;
-            font-size: 12px;
-            font-weight: bold;
+            color: var(--emerald);
+            font-size: 11.5px;
+            font-weight: 700;
             letter-spacing: 2px;
-            margin-bottom: 12px;
+            text-transform: uppercase;
+            margin-bottom: 10px;
         }
 
         h1 {
-            font-size: 34px;
+            font-size: 32px;
+            font-weight: 800;
+            letter-spacing: -0.5px;
             margin-bottom: 12px;
         }
 
         .subtitle {
-            color: #77788e;
+            color: var(--text-muted);
             line-height: 1.7;
-            max-width: 680px;
+            max-width: 700px;
             margin-bottom: 28px;
+            font-size: 14.5px;
         }
 
         .hero {
-            background: linear-gradient(120deg, #6659df, #8976ed);
-            color: white;
-            padding: 30px;
+            background: linear-gradient(135deg, #111827, #152033);
+            border: 1px solid var(--card-border);
+            padding: 32px;
             border-radius: 18px;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            gap: 20px;
-            margin-bottom: 26px;
+            gap: 24px;
+            margin-bottom: 28px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
         }
 
         .hero h2 {
-            font-size: 23px;
-            margin-bottom: 12px;
+            font-size: 22px;
+            font-weight: 800;
+            margin-bottom: 10px;
         }
 
         .hero p {
-            color: #f0edff;
+            color: var(--text-muted);
             line-height: 1.7;
             max-width: 650px;
+            font-size: 14px;
         }
 
         .shield {
-            font-size: 54px;
+            font-size: 60px;
             flex-shrink: 0;
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid rgba(16, 185, 129, 0.25);
+            border-radius: 20px;
+            padding: 16px;
+            box-shadow: 0 0 30px var(--emerald-glow);
         }
 
         .grid {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
-            gap: 18px;
-            margin-bottom: 25px;
+            gap: 20px;
+            margin-bottom: 30px;
         }
 
         .card {
-            background: white;
-            border: 1px solid #e9e7f3;
-            border-radius: 15px;
-            padding: 23px;
-            box-shadow: 0 5px 18px rgba(45, 40, 100, 0.035);
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 16px;
+            padding: 24px;
+            transition: all 0.2s ease;
+        }
+
+        .card:hover {
+            border-color: rgba(16, 185, 129, 0.4);
+            transform: translateY(-3px);
         }
 
         .icon {
@@ -117,39 +159,44 @@
             align-items: center;
             justify-content: center;
             border-radius: 12px;
-            background: #efedff;
-            font-size: 23px;
-            margin-bottom: 17px;
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid rgba(16, 185, 129, 0.25);
+            color: var(--emerald);
+            font-size: 22px;
+            margin-bottom: 16px;
         }
 
         .card h3 {
-            font-size: 17px;
-            margin-bottom: 10px;
+            font-size: 16px;
+            font-weight: 700;
+            margin-bottom: 8px;
         }
 
         .card p,
         .info p,
         .info li {
-            color: #77788e;
-            font-size: 14px;
-            line-height: 1.8;
+            color: var(--text-muted);
+            font-size: 13.5px;
+            line-height: 1.7;
         }
 
         .section-title {
-            font-size: 21px;
-            margin: 30px 0 17px;
+            font-size: 20px;
+            font-weight: 800;
+            margin: 36px 0 16px;
         }
 
         .info {
-            background: white;
-            border: 1px solid #e9e7f3;
-            border-radius: 15px;
-            padding: 26px;
-            margin-bottom: 20px;
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 16px;
+            padding: 28px;
+            margin-bottom: 22px;
         }
 
         .info h3 {
             margin-bottom: 12px;
+            font-size: 16px;
         }
 
         .info ol {
@@ -157,28 +204,34 @@
         }
 
         .info li {
-            padding: 5px 0;
+            padding: 6px 0;
+        }
+
+        .info li strong {
+            color: var(--text-main);
         }
 
         .hash {
-            background: #f0eeff;
-            color: #5548c7;
+            background: rgba(16, 185, 129, 0.1);
+            color: var(--emerald);
+            border: 1px solid rgba(16, 185, 129, 0.3);
             border-radius: 6px;
-            padding: 5px 9px;
+            padding: 6px 12px;
             font-family: monospace;
-            font-weight: bold;
+            font-weight: 700;
             display: inline-block;
+            font-size: 14px;
         }
 
         .notice {
             display: flex;
             align-items: flex-start;
-            gap: 13px;
-            padding: 18px;
+            gap: 14px;
+            padding: 18px 20px;
             border-radius: 12px;
-            background: #f0eeff;
-            border: 1px solid #e2deff;
-            margin-top: 18px;
+            background: rgba(16, 185, 129, 0.06);
+            border: 1px solid rgba(16, 185, 129, 0.25);
+            margin-top: 20px;
         }
 
         .notice span {
@@ -186,101 +239,92 @@
         }
 
         .notice p {
-            color: #5d568b;
-            font-size: 14px;
+            color: #d1d5db;
+            font-size: 13.5px;
             line-height: 1.7;
         }
 
         .actions {
-            margin-top: 28px;
+            margin-top: 32px;
             display: flex;
             flex-wrap: wrap;
             gap: 14px;
         }
 
         .btn {
-            display: inline-block;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
             text-decoration: none;
-            border-radius: 9px;
-            padding: 13px 20px;
-            font-weight: bold;
+            border-radius: 10px;
+            padding: 13px 22px;
+            font-weight: 700;
             font-size: 14px;
+            transition: all 0.2s;
         }
 
         .primary {
-            background: #6659df;
-            color: white;
+            background: var(--emerald);
+            color: #070b12;
+            box-shadow: 0 4px 15px var(--emerald-glow);
+        }
+
+        .primary:hover {
+            background: var(--emerald-hover);
+            transform: translateY(-1px);
         }
 
         .secondary {
-            background: white;
-            color: #6659df;
-            border: 1px solid #dedaf8;
+            background: rgba(255, 255, 255, 0.04);
+            color: var(--text-main);
+            border: 1px solid var(--card-border);
         }
 
-        .btn:hover {
-            opacity: 0.88;
+        .secondary:hover {
+            background: rgba(255, 255, 255, 0.08);
+            border-color: rgba(16, 185, 129, 0.4);
         }
 
         footer {
             text-align: center;
-            color: #9292a5;
+            color: var(--text-muted);
             font-size: 13px;
-            padding: 24px;
+            padding: 28px;
+            border-top: 1px solid var(--card-border);
         }
 
-        @media (max-width: 700px) {
-            nav {
-                padding: 0 5%;
-            }
-
-            main {
-                margin-top: 28px;
-            }
-
-            h1 {
-                font-size: 27px;
-            }
-
-            .hero {
-                padding: 23px;
-            }
-
-            .shield {
-                font-size: 38px;
-            }
-
-            .grid {
-                grid-template-columns: 1fr;
-            }
+        @media (max-width: 768px) {
+            .grid { grid-template-columns: 1fr; }
+            .hero { flex-direction: column; text-align: center; }
+            .shield { display: none; }
         }
     </style>
 </head>
 
 <body>
     <nav>
-        <div class="brand">TrustVault</div>
-        <a href="{{ url_for('dashboard') }}">← Dashboard</a>
+        <div class="brand">
+            <span>🔐</span> Trust<span>Vault</span>
+        </div>
+        <a href="{{ url_for('dashboard') }}">← Back to Dashboard</a>
     </nav>
 
     <main>
-        <div class="eyebrow">SECURITY CENTER</div>
+        <div class="eyebrow">Cryptographic Integrity Center</div>
 
         <h1>File Integrity Verification</h1>
 
         <p class="subtitle">
-            Protect document integrity with SHA-256 hashing.
-            TrustVault can detect unexpected changes by comparing
-            a file's current hash with its stored reference hash.
+            Protect confidential documents with deterministic SHA-256 cryptographic hashing.
+            TrustVault detects unauthorized modifications by verifying document streams against the stored tamper-evident checksum.
         </p>
 
         <section class="hero">
             <div>
-                <h2>Every file deserves protection.</h2>
+                <h2>Zero-Trust Cryptographic Assurance</h2>
                 <p>
-                    Integrity verification helps identify document
-                    tampering and prevents downloads when a hash
-                    mismatch is detected by the backend.
+                    Every document uploaded to TrustVault is hashed on the server using SHA-256 before being committed to Supabase private storage.
+                    Any single-bit alteration flags a verification failure and logs a high-severity security incident.
                 </p>
             </div>
             <div class="shield">🛡️</div>
@@ -291,85 +335,79 @@
                 <div class="icon">🔐</div>
                 <h3>SHA-256 Hashing</h3>
                 <p>
-                    Generates a fixed-length 256-bit hash based on
-                    the document's contents.
+                    Generates a deterministic 256-bit cryptographic fingerprint of the file stream upon upload.
                 </p>
             </section>
 
             <section class="card">
                 <div class="icon">🔎</div>
-                <h3>Change Detection</h3>
+                <h3>Tamper Detection</h3>
                 <p>
-                    Comparing hashes helps detect whether file
-                    contents have changed since upload.
+                    Checksum comparison identifies unauthorized storage alteration, truncation, or bit rot.
                 </p>
             </section>
 
             <section class="card">
                 <div class="icon">🚫</div>
-                <h3>Download Protection</h3>
+                <h3>Download Defense</h3>
                 <p>
-                    When the backend detects a mismatch, it can
-                    block the download and report an integrity error.
+                    Direct downloads stream through on-the-fly integrity verification to abort compromised files.
                 </p>
             </section>
         </div>
 
-        <h2 class="section-title">How verification works</h2>
+        <h2 class="section-title">How Verification Operates</h2>
 
         <section class="info">
             <ol>
                 <li>
-                    <strong>Upload:</strong>
-                    A document is uploaded to TrustVault.
+                    <strong>Upload &amp; Streaming:</strong>
+                    Document is securely streamed into server memory via TLS 1.3.
                 </li>
                 <li>
-                    <strong>Generate hash:</strong>
-                    The backend calculates the document's SHA-256 hash.
+                    <strong>Cryptographic Hashing:</strong>
+                    The backend computes the 64-hex-character SHA-256 digest in real-time.
                 </li>
                 <li>
-                    <strong>Store reference:</strong>
-                    The hash is saved with the document record.
+                    <strong>Cloud Storage Commit:</strong>
+                    The file is committed to Supabase private storage with a unique UUID path.
                 </li>
                 <li>
-                    <strong>Verify:</strong>
-                    The backend recalculates the hash when checking the file.
+                    <strong>Database Reference:</strong>
+                    The file metadata, UUID path, and SHA-256 hash are recorded in PostgreSQL.
                 </li>
                 <li>
-                    <strong>Compare:</strong>
-                    If the hashes differ, the file may have been modified.
+                    <strong>Integrity Verification:</strong>
+                    Direct downloads recompute the stream digest; downloads fail if any mismatch occurs.
                 </li>
             </ol>
         </section>
 
-        <h2 class="section-title">Security details</h2>
+        <h2 class="section-title">Cryptographic Standard</h2>
 
         <section class="info">
-            <h3>Hash algorithm</h3>
+            <h3>Standard Algorithm</h3>
             <p>
-                <span class="hash">SHA-256</span>
+                <span class="hash">SHA-256 (FIPS 180-4)</span>
             </p>
 
             <p style="margin-top: 14px;">
-                SHA-256 produces a 256-bit digest, commonly represented
-                as 64 hexadecimal characters. Even a small change to
-                file contents normally results in a different hash.
+                SHA-256 produces a collision-resistant 256-bit hash. Even the modification of a single bit or whitespace
+                in a confidential document completely scrambles the output digest due to the avalanche effect.
             </p>
 
             <div class="notice">
                 <span>💡</span>
                 <p>
-                    <strong>Important:</strong> Hashing is not encryption.
-                    It helps detect changes only when the stored reference
-                    hash is trustworthy and the backend actually performs
-                    the comparison.
+                    <strong>Security Notice:</strong> Hashing guarantees file integrity and tamper-evidence.
+                    Access confidentiality is enforced via strict server-side RBAC and 60-second time-expiring signed tokens.
                 </p>
             </div>
         </section>
 
         <div class="actions">
             <a class="btn primary" href="{{ url_for('documents') }}">
-                View My Documents →
+                View Vault Documents →
             </a>
 
             <a class="btn secondary" href="{{ url_for('dashboard') }}">
@@ -379,7 +417,7 @@
     </main>
 
     <footer>
-        TrustVault · Secure Document Management
+        TrustVault © 2026 · Secure Document Management Platform
     </footer>
 </body>
 </html>

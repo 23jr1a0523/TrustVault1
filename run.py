@@ -191,22 +191,46 @@ def register():
         else:
             connection = get_db_connection()
             try:
-                # Force role to 'user'. Ordinary registration cannot create administrators.
-                connection.execute(
-                    """
-                    INSERT INTO users (username, password_hash, role)
-                    VALUES (?, ?, 'user')
-                    """,
-                    (username, generate_password_hash(password)),
-                )
-                connection.commit()
-                log_audit(action="REGISTER", status="SUCCESS", details=f"New user registered: {username}")
-                return redirect(url_for("login"))
+                # Check case-insensitively if username exists
+                existing = connection.execute(
+                    "SELECT id FROM users WHERE LOWER(username) = LOWER(?)",
+                    (username,),
+                ).fetchone()
+
+                if existing:
+                    error = "Username is already taken. Please choose another."
+                else:
+                    # Force role to 'user'. Ordinary registration cannot create administrators.
+                    connection.execute(
+                        """
+                        INSERT INTO users (username, password_hash, role)
+                        VALUES (?, ?, 'user')
+                        """,
+                        (username, generate_password_hash(password)),
+                    )
+                    connection.commit()
+                    log_audit(action="REGISTER", status="SUCCESS", details=f"New user registered: {username}")
+
+                    # Automatically log in the user and redirect to dashboard
+                    new_user = connection.execute(
+                        "SELECT * FROM users WHERE LOWER(username) = LOWER(?)",
+                        (username,),
+                    ).fetchone()
+
+                    session.clear()
+                    session.permanent = True
+                    session["user_id"] = new_user["id"]
+                    session["username"] = new_user["username"]
+                    session["role"] = new_user["role"]
+                    generate_csrf_token()
+
+                    return redirect(url_for("dashboard"))
 
             except Exception as e:
                 connection.rollback()
-                error = "Username may already exist. Try another."
-                log_audit(action="REGISTER_FAILED", status="DENIED", details=f"Registration failed for {username}")
+                logger.error(f"Registration error: {e}")
+                error = "Registration failed. Please try again."
+                log_audit(action="REGISTER_FAILED", status="DENIED", details=f"Registration failed for {username}: {str(e)}")
 
             finally:
                 connection.close()
@@ -226,8 +250,9 @@ def login():
 
         connection = get_db_connection()
         try:
+            # Case-insensitive query handles any mobile capitalization
             user = connection.execute(
-                "SELECT * FROM users WHERE username = ?",
+                "SELECT * FROM users WHERE LOWER(username) = LOWER(?)",
                 (username,),
             ).fetchone()
         finally:
@@ -245,7 +270,7 @@ def login():
             return redirect(url_for("dashboard"))
 
         log_audit(action="LOGIN_FAILED", status="DENIED", details=f"Failed login attempt for: {username}")
-        error = "Invalid username or password."
+        error = "Invalid username or password. Please verify and try again."
 
     return render_template("login.html", error=error)
 

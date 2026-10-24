@@ -3,12 +3,24 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TrustVault | Secure Document Sharing</title>
+    <title>TrustVault | Secure Document Sharing & Zero-Trust Portal</title>
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
     <style>
+        :root {
+            --bg-dark: #070b12;
+            --navbar-bg: #0d131f;
+            --card-bg: #111827;
+            --card-border: #1f2937;
+            --emerald: #10b981;
+            --emerald-hover: #059669;
+            --emerald-glow: rgba(16, 185, 129, 0.25);
+            --text-main: #f9fafb;
+            --text-muted: #9ca3af;
+        }
+
         * {
             margin: 0;
             padding: 0;
@@ -17,9 +29,9 @@
         }
 
         body {
-            font-family: 'Inter', sans-serif;
-            background: #050918;
-            color: #f8faff;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-main);
             min-height: 100vh;
         }
 
@@ -27,198 +39,253 @@
             display: flex;
             align-items: center;
             justify-content: space-between;
-            padding: 22px 7%;
-            border-bottom: 1px solid #1b2542;
-            background: #080e20;
+            padding: 18px 7%;
+            border-bottom: 1px solid var(--card-border);
+            background: var(--navbar-bg);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(12px);
         }
 
         .logo {
-            font-size: 27px;
+            font-size: 24px;
             font-weight: 800;
-            letter-spacing: -1px;
+            letter-spacing: -0.5px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
 
         .logo span {
-            color: #9575ff;
+            color: var(--emerald);
         }
 
         .nav-links {
             display: flex;
-            gap: 30px;
-            color: #c5cce0;
+            gap: 28px;
+            color: var(--text-muted);
             font-size: 14px;
+            font-weight: 500;
         }
 
         .nav-links a {
             color: inherit;
             text-decoration: none;
+            transition: color 0.2s;
         }
 
         .nav-links a:hover {
-            color: #a995ff;
+            color: var(--emerald);
         }
 
-        .nav-button {
-            border: 1px solid #806bff;
-            color: white;
-            padding: 12px 22px;
-            border-radius: 12px;
+        .nav-actions {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .nav-button-ghost {
+            color: var(--text-muted);
+            padding: 10px 18px;
+            border-radius: 10px;
             text-decoration: none;
             font-weight: 600;
-            font-size: 14px;
+            font-size: 13.5px;
+            transition: all 0.2s;
+        }
+
+        .nav-button-ghost:hover {
+            color: var(--text-main);
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .nav-button-primary {
+            background: var(--emerald);
+            color: #070b12;
+            padding: 10px 20px;
+            border-radius: 10px;
+            text-decoration: none;
+            font-weight: 700;
+            font-size: 13.5px;
+            box-shadow: 0 4px 15px var(--emerald-glow);
+            transition: all 0.2s;
+        }
+
+        .nav-button-primary:hover {
+            background: var(--emerald-hover);
+            transform: translateY(-1px);
         }
 
         .hero {
             max-width: 1250px;
             margin: auto;
-            padding: 75px 35px 45px;
+            padding: 85px 35px 55px;
             display: grid;
-            grid-template-columns: 1.1fr 0.9fr;
+            grid-template-columns: 1.15fr 0.85fr;
             gap: 60px;
             align-items: center;
         }
 
         .eyebrow {
             display: inline-block;
-            padding: 10px 15px;
-            color: #c8baff;
-            border: 1px solid #48358c;
-            background: #151333;
+            padding: 6px 14px;
+            color: var(--emerald);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            background: rgba(16, 185, 129, 0.08);
             border-radius: 30px;
             font-size: 12px;
             font-weight: 700;
             letter-spacing: 1px;
-            margin-bottom: 25px;
-        }
-
-        h1 {
-            font-size: clamp(42px, 5vw, 67px);
-            font-weight: 800;
-            line-height: 1.12;
-            letter-spacing: -2.8px;
             margin-bottom: 24px;
         }
 
+        h1 {
+            font-size: clamp(38px, 4.8vw, 62px);
+            font-weight: 800;
+            line-height: 1.12;
+            letter-spacing: -1.5px;
+            margin-bottom: 22px;
+        }
+
         h1 span {
-            background: linear-gradient(90deg, #6ba9ff, #ba58ff);
+            background: linear-gradient(90deg, #34d399, #10b981);
             -webkit-background-clip: text;
             background-clip: text;
             color: transparent;
         }
 
         .description {
-            max-width: 570px;
-            color: #aeb9d4;
-            font-size: 17px;
-            line-height: 1.9;
-            margin-bottom: 30px;
+            max-width: 580px;
+            color: var(--text-muted);
+            font-size: 16px;
+            line-height: 1.8;
+            margin-bottom: 32px;
         }
 
         .actions {
             display: flex;
             flex-wrap: wrap;
-            gap: 15px;
+            gap: 16px;
         }
 
         .primary, .secondary {
-            display: inline-block;
-            padding: 16px 25px;
-            border-radius: 13px;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 14px 26px;
+            border-radius: 12px;
             text-decoration: none;
             font-weight: 700;
-            font-size: 15px;
+            font-size: 14.5px;
             transition: 0.2s;
         }
 
         .primary {
-            background: linear-gradient(110deg, #873dff, #397eff);
-            color: white;
-            box-shadow: 0 8px 30px #5540ff30;
+            background: var(--emerald);
+            color: #070b12;
+            box-shadow: 0 6px 25px var(--emerald-glow);
         }
 
         .primary:hover {
+            background: var(--emerald-hover);
             transform: translateY(-2px);
-            box-shadow: 0 12px 35px #5540ff55;
+            box-shadow: 0 10px 30px var(--emerald-glow);
         }
 
         .secondary {
-            border: 1px solid #6378bb;
-            color: white;
+            border: 1px solid var(--card-border);
+            color: var(--text-main);
+            background: rgba(255, 255, 255, 0.03);
         }
 
         .secondary:hover {
-            background: #151d37;
+            border-color: rgba(16, 185, 129, 0.4);
+            background: rgba(255, 255, 255, 0.06);
         }
 
-        .vault {
-            min-height: 365px;
-            border-radius: 28px;
-            border: 1px solid #303d70;
-            background:
-                radial-gradient(ellipse at 50% 45%, #263b89 0%, transparent 48%),
-                linear-gradient(145deg, #111a37, #090e20);
+        .vault-card {
+            min-height: 380px;
+            border-radius: 24px;
+            border: 1px solid var(--card-border);
+            background: linear-gradient(145deg, #111827, #0d131f);
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            padding: 35px;
+            padding: 40px;
             position: relative;
             overflow: hidden;
-            box-shadow: 0 25px 90px #00000045;
+            box-shadow: 0 25px 60px rgba(0, 0, 0, 0.6);
+        }
+
+        .vault-card::before {
+            content: '';
+            position: absolute;
+            width: 250px;
+            height: 250px;
+            background: radial-gradient(circle, rgba(16, 185, 129, 0.15), transparent 70%);
+            border-radius: 50%;
+            pointer-events: none;
         }
 
         .shield {
-            width: 135px;
-            height: 135px;
+            width: 120px;
+            height: 120px;
             display: grid;
             place-items: center;
-            border-radius: 35px;
-            font-size: 65px;
-            background: linear-gradient(145deg, #5445e9, #1c83ff);
-            box-shadow: 0 0 65px #5e55ff60;
-            margin-bottom: 30px;
+            border-radius: 28px;
+            font-size: 56px;
+            background: rgba(16, 185, 129, 0.12);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            color: var(--emerald);
+            box-shadow: 0 0 50px var(--emerald-glow);
+            margin-bottom: 26px;
         }
 
-        .vault h2 {
-            font-size: 24px;
-            margin-bottom: 12px;
+        .vault-card h2 {
+            font-size: 22px;
+            font-weight: 800;
+            margin-bottom: 10px;
             text-align: center;
         }
 
-        .vault p {
-            color: #b0bee2;
-            font-size: 14px;
+        .vault-card p {
+            color: var(--text-muted);
+            font-size: 13.5px;
             text-align: center;
-            line-height: 1.8;
+            line-height: 1.7;
         }
 
         .features {
             max-width: 1250px;
             margin: 0 auto;
-            padding: 35px 35px 60px;
+            padding: 40px 35px 70px;
             display: grid;
             grid-template-columns: repeat(4, 1fr);
-            gap: 18px;
-            scroll-margin-top: 30px;
+            gap: 20px;
+            scroll-margin-top: 50px;
         }
 
         .section-title {
             grid-column: 1 / -1;
-            font-size: 30px;
-            margin-bottom: 10px;
+            font-size: 28px;
+            font-weight: 800;
+            margin-bottom: 12px;
         }
 
         .feature-card {
-            background: linear-gradient(145deg, #0e1730, #0a1022);
-            border: 1px solid #243354;
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
             border-radius: 18px;
-            padding: 25px 22px;
-            transition: 0.2s;
+            padding: 28px 24px;
+            transition: all 0.25s ease;
         }
 
         .feature-card:hover {
-            border-color: #7867e9;
+            border-color: rgba(16, 185, 129, 0.5);
             transform: translateY(-4px);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4), 0 0 15px var(--emerald-glow);
         }
 
         .feature-icon {
@@ -226,143 +293,125 @@
             height: 48px;
             display: grid;
             place-items: center;
-            border-radius: 13px;
-            background: #28235b;
-            color: #c1b5ff;
-            font-size: 23px;
+            border-radius: 12px;
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid rgba(16, 185, 129, 0.25);
+            color: var(--emerald);
+            font-size: 22px;
             margin-bottom: 20px;
         }
 
         .feature-card h3 {
             font-size: 16px;
-            margin-bottom: 12px;
+            font-weight: 700;
+            margin-bottom: 10px;
         }
 
         .feature-card p {
-            color: #aab6d0;
+            color: var(--text-muted);
             font-size: 13px;
-            line-height: 1.8;
+            line-height: 1.7;
         }
 
         .security-section {
             max-width: 1180px;
-            margin: 0 auto 55px;
-            padding: 35px;
-            border: 1px solid #243354;
+            margin: 0 auto 60px;
+            padding: 38px;
+            border: 1px solid var(--card-border);
             border-radius: 20px;
-            background: #0b1228;
-            scroll-margin-top: 30px;
+            background: var(--card-bg);
+            scroll-margin-top: 50px;
         }
 
         .security-section h2 {
-            margin-bottom: 15px;
+            font-size: 24px;
+            font-weight: 800;
+            margin-bottom: 14px;
         }
 
         .security-section p {
-            color: #aeb9d4;
-            line-height: 1.9;
-            margin-bottom: 20px;
+            color: var(--text-muted);
+            line-height: 1.8;
+            margin-bottom: 24px;
+            font-size: 14.5px;
         }
 
         .security-link {
-            display: inline-block;
-            color: #b9a8ff;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--emerald);
             text-decoration: none;
-            border: 1px solid #5745a8;
+            border: 1px solid rgba(16, 185, 129, 0.35);
+            background: rgba(16, 185, 129, 0.08);
             border-radius: 10px;
-            padding: 12px 18px;
+            padding: 12px 20px;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.2s;
         }
 
         .security-link:hover {
-            background: #151d37;
+            background: rgba(16, 185, 129, 0.15);
+            border-color: var(--emerald);
         }
 
-        .bottom {
+        footer.bottom {
             text-align: center;
-            color: #8997b8;
+            color: var(--text-muted);
             font-size: 13px;
-            padding: 25px;
-            border-top: 1px solid #1b2542;
+            padding: 28px;
+            border-top: 1px solid var(--card-border);
+            background: var(--navbar-bg);
         }
 
         @media (max-width: 900px) {
-            .nav-links {
-                display: none;
-            }
-
+            .nav-links { display: none; }
             .hero {
                 grid-template-columns: 1fr;
                 gap: 40px;
                 padding-top: 50px;
             }
-
             .features {
                 grid-template-columns: repeat(2, 1fr);
             }
-
             .security-section {
-                margin: 0 22px 40px;
+                margin: 0 20px 40px;
             }
         }
 
         @media (max-width: 520px) {
-            nav {
-                padding: 20px;
-            }
-
-            .logo {
-                font-size: 23px;
-            }
-
-            .nav-button {
-                padding: 10px 13px;
-            }
-
-            .hero {
-                padding: 45px 22px;
-            }
-
-            h1 {
-                font-size: 43px;
-            }
-
-            .description {
-                font-size: 15px;
-            }
-
-            .features {
-                grid-template-columns: 1fr;
-                padding: 20px 22px 35px;
-            }
-
-            .vault {
-                min-height: 310px;
-            }
-
-            .security-section {
-                padding: 25px;
-            }
+            nav { padding: 16px 20px; }
+            .logo { font-size: 20px; }
+            .features { grid-template-columns: 1fr; }
+            .hero { padding: 40px 20px; }
+            h1 { font-size: 34px; }
         }
     </style>
 </head>
 
 <body>
     <nav>
-        <div class="logo">Trust<span>Vault</span></div>
+        <div class="logo">
+            <span>🔐</span> Trust<span>Vault</span>
+        </div>
 
         <div class="nav-links">
             <a href="#home">Home</a>
             <a href="#features">Features</a>
-            <a href="#security">Security</a>
+            <a href="#security">Security Model</a>
         </div>
-        <a class="nav-button" href="{{ url_for('register') }}">Register</a>
-        <a class="nav-button" href="{{ url_for('login') }}">Login / Explore</a>
+
+        <div class="nav-actions">
+            <a class="nav-button-ghost" href="{{ url_for('login') }}">Log In</a>
+            <a class="nav-button-primary" href="{{ url_for('register') }}">Create Account</a>
+        </div>
     </nav>
 
     <main id="home">
         <section class="hero">
             <div>
-                <div class="eyebrow">✦ &nbsp; SECURE DOCUMENT SHARING</div>
+                <div class="eyebrow">✦ &nbsp; ZERO-TRUST CONFIDENTIAL CLOUD</div>
 
                 <h1>
                     Your Documents.<br>
@@ -371,71 +420,71 @@
                 </h1>
 
                 <p class="description">
-                    Manage and share sensitive documents with confidence.
-                    TrustVault brings access control, document integrity,
-                    and transparent activity tracking into one secure platform.
+                    Manage and share sensitive documents with enterprise confidence.
+                    TrustVault brings Supabase private storage, SHA-256 cryptographic tamper detection,
+                    timed 60s signed access, and immutable audit tracking into one unified platform.
                 </p>
 
                 <div class="actions">
-                    <a class="primary" href="#features">Explore Features &nbsp; →</a>
-                    <a class="secondary" href="#security">Discover Security</a>
+                    <a class="primary" href="{{ url_for('register') }}">Get Started Now →</a>
+                    <a class="secondary" href="#features">Explore Features</a>
                 </div>
             </div>
 
-            <div class="vault">
-                <div class="shield">♢</div>
-                <h2>Security at Every Step</h2>
+            <div class="vault-card">
+                <div class="shield">🛡️</div>
+                <h2>Zero-Trust Architecture</h2>
                 <p>
-                    Controlled access. Document integrity.<br>
-                    Transparent activity tracking.
+                    Isolated private cloud storage.<br>
+                    Cryptographic SHA-256 integrity.<br>
+                    Tamper-evident activity audit logs.
                 </p>
             </div>
         </section>
 
         <section class="features" id="features">
-            <h2 class="section-title">Explore Our Features</h2>
+            <h2 class="section-title">Security &amp; Storage Architecture</h2>
 
             <article class="feature-card">
-                <div class="feature-icon">♢</div>
-                <h3>Secure Sharing</h3>
-                <p>Share documents with controlled permissions and authorized users.</p>
+                <div class="feature-icon">☁️</div>
+                <h3>Supabase Storage</h3>
+                <p>Files are stored in private cloud buckets with unique UUID paths and never publicly exposed.</p>
             </article>
 
             <article class="feature-card">
-                <div class="feature-icon">♙</div>
-                <h3>Role-Based Access</h3>
-                <p>Separate user and administrator permissions for better control.</p>
+                <div class="feature-icon">⏱️</div>
+                <h3>60-Second Signed URLs</h3>
+                <p>Authorized downloads generate short-lived, single-use signed access URLs that expire in 60s.</p>
             </article>
 
             <article class="feature-card">
-                <div class="feature-icon">▤</div>
-                <h3>Integrity Check</h3>
-                <p>Use SHA-256 hashes to verify whether documents have changed.</p>
+                <div class="feature-icon">🔏</div>
+                <h3>SHA-256 Tamper Detection</h3>
+                <p>Every file is cryptographically fingerprinted upon upload to immediately flag any alteration.</p>
             </article>
 
             <article class="feature-card">
-                <div class="feature-icon">◷</div>
-                <h3>Audit Logs</h3>
-                <p>Record important actions for accountable document management.</p>
+                <div class="feature-icon">📋</div>
+                <h3>Immutable Audit Logs</h3>
+                <p>Every upload, download, share, permission grant, and denial is logged with client IP address.</p>
             </article>
         </section>
 
         <section class="security-section" id="security">
-            <h2>Security at Every Step</h2>
+            <h2>Zero-Trust Security at Every Step</h2>
             <p>
-                TrustVault helps manage confidential documents with
-                role-based access control, SHA-256 integrity verification,
-                and audit logging. Only authorized users should access
-                protected documents and account features.
+                TrustVault strictly enforces role-based access control (RBAC). Document owners retain absolute control
+                to share viewer permissions with specific users or revoke access instantly. Non-owners and unauthorized
+                requests are denied access with explicit HTTP 403 enforcement and security incident logging.
             </p>
             <a class="security-link" href="{{ url_for('login') }}">
-                Login to TrustVault →
+                Access TrustVault Portal →
             </a>
         </section>
     </main>
 
     <footer class="bottom">
-        TrustVault © 2026 · Secure Document Sharing Platform
+        TrustVault © 2026 · Secure AI-Powered Document-Sharing Platform · Production Ready
     </footer>
 </body>
 </html>
