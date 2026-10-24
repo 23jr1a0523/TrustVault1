@@ -38,21 +38,23 @@ logger = logging.getLogger(__name__)
 BASE_DIR = Path(__file__).resolve().parent
 load_dotenv(BASE_DIR / ".env")
 
-app = Flask(__name__)
+from werkzeug.middleware.proxy_fix import ProxyFix
 
-# Fallback only for dev; in production, SECRET_KEY should always be set
+app = Flask(__name__)
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
+
+# Fallback secret key (stable across all workers)
 app.secret_key = os.environ.get(
     "SECRET_KEY",
-    secrets.token_hex(32)  # Generates unique secure key if not provided
+    "trustvault-production-stable-secret-key-2026-auth-secure"
 )
 
-# Secure Session Cookie Settings
-is_production = os.environ.get("FLASK_ENV") == "production" or os.environ.get("RENDER") is not None
+# Robust Session Cookie Settings for cloud reverse proxies
 app.config.update(
     SESSION_COOKIE_HTTPONLY=True,
     SESSION_COOKIE_SAMESITE="Lax",
-    SESSION_COOKIE_SECURE=is_production,
-    PERMANENT_SESSION_LIFETIME=3600,
+    SESSION_COOKIE_SECURE=False,
+    PERMANENT_SESSION_LIFETIME=86400,
 )
 
 UPLOAD_FOLDER = BASE_DIR / "private_uploads"
@@ -233,6 +235,7 @@ def login():
 
         if user and check_password_hash(user["password_hash"], password):
             session.clear()
+            session.permanent = True
             session["user_id"] = user["id"]
             session["username"] = user["username"]
             session["role"] = user["role"]
