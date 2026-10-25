@@ -129,24 +129,89 @@ def log_audit(action, document_name=None, status="SUCCESS", details=None):
 
 # ---------------- ACCESS CONTROL DECORATORS & HELPERS ----------------
 
+def extract_user_id(user_row):
+    """Safely extracts integer user id from any database row format (RealDictRow, sqlite3.Row, tuple, dict)."""
+    if not user_row:
+        return None
+    # 1. Dict-like or RealDictRow get()
+    if hasattr(user_row, "get"):
+        for k in ("id", "user_id", "ID", "USER_ID", "Id"):
+            val = user_row.get(k)
+            if val is not None:
+                try:
+                    return int(val)
+                except (ValueError, TypeError):
+                    pass
+    # 2. Key lookups
+    if hasattr(user_row, "keys"):
+        keys = list(user_row.keys())
+        for k in keys:
+            if str(k).lower() in ("id", "user_id"):
+                val = user_row[k]
+                if val is not None:
+                    try:
+                        return int(val)
+                    except (ValueError, TypeError):
+                        pass
+        if keys:
+            val = user_row[keys[0]]
+            if val is not None:
+                try:
+                    return int(val)
+                except (ValueError, TypeError):
+                    pass
+    # 3. Tuple or sequence index
+    try:
+        val = user_row[0]
+        if val is not None:
+            return int(val)
+    except Exception:
+        pass
+    return None
+
+
+def extract_field(user_row, field_name, default=""):
+    """Safely extracts a string field from any database row format."""
+    if not user_row:
+        return default
+    if hasattr(user_row, "get"):
+        for k in (field_name, field_name.lower(), field_name.upper()):
+            val = user_row.get(k)
+            if val is not None:
+                return str(val)
+    if hasattr(user_row, "keys"):
+        for k in list(user_row.keys()):
+            if str(k).lower() == field_name.lower():
+                val = user_row[k]
+                if val is not None:
+                    return str(val)
+    return default
+
+
 def get_current_user_id():
     """Returns current user's integer ID, self-healing from username if session is partially populated."""
     user_id = session.get("user_id")
-    if not user_id:
-        username = session.get("username")
-        if username:
-            conn = get_db_connection()
-            try:
-                u = conn.execute("SELECT id FROM users WHERE LOWER(username) = LOWER(?)", (username,)).fetchone()
-                if u:
-                    uid = u["id"] if ("id" in u.keys() and u["id"] is not None) else u[0]
-                    user_id = int(uid)
-                    session["user_id"] = user_id
-            except Exception as e:
-                logger.error(f"Error self-healing user session: {e}")
-            finally:
-                conn.close()
-    return user_id
+    if user_id is not None:
+        try:
+            return int(user_id)
+        except (ValueError, TypeError):
+            pass
+
+    username = session.get("username")
+    if username:
+        conn = get_db_connection()
+        try:
+            u = conn.execute("SELECT id, username FROM users WHERE LOWER(username) = LOWER(?)", (username,)).fetchone()
+            if u:
+                uid = extract_user_id(u)
+                if uid is not None:
+                    session["user_id"] = uid
+                    return uid
+        except Exception as e:
+            logger.error(f"Error self-healing user session: {e}")
+        finally:
+            conn.close()
+    return None
 
 
 def login_required(view):
@@ -181,11 +246,28 @@ def admin_required(view):
 @app.route("/health")
 def health_check():
     """Health check endpoint for Render deployment monitoring."""
+    cols = []
+    user_sample = None
+    if is_postgres():
+        conn = get_db_connection()
+        try:
+            c = conn.execute("SELECT column_name, data_type FROM information_schema.columns WHERE table_name = 'users'").fetchall()
+            cols = [dict(r) for r in c]
+            u = conn.execute("SELECT * FROM users LIMIT 1").fetchone()
+            if u:
+                user_sample = {k: (str(v)[:30] if k == 'password_hash' else v) for k, v in dict(u).items()}
+        except Exception as e:
+            cols = str(e)
+        finally:
+            conn.close()
+
     return jsonify({
         "status": "healthy",
         "app": "TrustVault",
         "database": "postgresql" if is_postgres() else "sqlite",
-        "storage": "supabase" if is_storage_configured() else "local"
+        "storage": "supabase" if is_storage_configured() else "local",
+        "users_columns": cols,
+        "user_sample": user_sample
     }), 200
 
 
@@ -241,10 +323,10 @@ def register():
 
                     session.clear()
                     session.permanent = True
-                    uid = new_user["id"] if ("id" in new_user.keys() and new_user["id"] is not None) else new_user[0]
-                    session["user_id"] = int(uid)
-                    session["username"] = new_user["username"]
-                    session["role"] = new_user["role"]
+                    uid = extract_user_id(new_user)
+                    session["user_id"] = uid
+                    session["username"] = extract_field(new_user, "username", username)
+                    session["role"] = extract_field(new_user, "role", "user")
                     generate_csrf_token()
 
                     return redirect(url_for("dashboard"))
@@ -282,26 +364,30 @@ def login():
                 "SELECT id, username, password_hash, role FROM users WHERE LOWER(username) = LOWER(?)",
                 (username,),
             ).fetchone()
+
+            if not user:
+                log_audit(action="LOGIN_FAILED", status="DENIED", details=f"Username not found: {username}")
+                error = f"Username '{username}' not found. Please click 'Create an account' below to register first, or use demo / Password123!"
+            elif not check_password_hash(extract_field(user, "password_hash"), password):
+                log_audit(action="LOGIN_FAILED", status="DENIED", details=f"Wrong password for: {username}")
+                error = "Incorrect password. Please verify and try again."
+            else:
+                session.clear()
+                session.permanent = True
+                uid = extract_user_id(user)
+                session["user_id"] = uid
+                session["username"] = extract_field(user, "username", username)
+                session["role"] = extract_field(user, "role", "user")
+                generate_csrf_token()
+
+                log_audit(action="LOGIN", status="SUCCESS", details=f"User logged in: {username}")
+                return redirect(url_for("dashboard"))
+        except Exception as e:
+            logger.error(f"Login error: {e}")
+            error = f"Login notice: {str(e)[:120]}"
+            log_audit(action="LOGIN_ERROR", status="DENIED", details=str(e))
         finally:
             connection.close()
-
-        if not user:
-            log_audit(action="LOGIN_FAILED", status="DENIED", details=f"Username not found: {username}")
-            error = f"Username '{username}' not found. Please click 'Create an account' below to register first, or use demo / Password123!"
-        elif not check_password_hash(user["password_hash"], password):
-            log_audit(action="LOGIN_FAILED", status="DENIED", details=f"Wrong password for: {username}")
-            error = "Incorrect password. Please verify and try again."
-        else:
-            session.clear()
-            session.permanent = True
-            uid = user["id"] if ("id" in user.keys() and user["id"] is not None) else user[0]
-            session["user_id"] = int(uid)
-            session["username"] = user["username"]
-            session["role"] = user["role"]
-            generate_csrf_token()
-
-            log_audit(action="LOGIN", status="SUCCESS", details=f"User logged in: {username}")
-            return redirect(url_for("dashboard"))
 
     return render_template("login.html", error=error)
 
