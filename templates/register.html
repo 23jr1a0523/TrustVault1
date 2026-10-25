@@ -63,13 +63,13 @@
 
         .auth-card {
             width: 100%;
-            max-width: 430px;
+            max-width: 440px;
             background: var(--card-bg);
             border: 1px solid var(--card-border);
             backdrop-filter: blur(18px);
             -webkit-backdrop-filter: blur(18px);
             border-radius: 22px;
-            padding: 42px 34px;
+            padding: 38px 32px;
             box-shadow: 0 25px 60px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(255, 255, 255, 0.04);
             position: relative;
             z-index: 10;
@@ -83,25 +83,25 @@
 
         .brand-header {
             text-align: center;
-            margin-bottom: 28px;
+            margin-bottom: 24px;
         }
 
         .brand-logo {
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            width: 58px;
-            height: 58px;
+            width: 56px;
+            height: 56px;
             background: rgba(16, 185, 129, 0.1);
             border: 1px solid rgba(16, 185, 129, 0.3);
             border-radius: 16px;
-            font-size: 28px;
-            margin-bottom: 16px;
+            font-size: 26px;
+            margin-bottom: 14px;
             box-shadow: 0 0 25px var(--emerald-glow);
         }
 
         h1 {
-            font-size: 24px;
+            font-size: 23px;
             font-weight: 800;
             letter-spacing: -0.5px;
             margin-bottom: 6px;
@@ -124,14 +124,14 @@
             padding: 12px 16px;
             border-radius: 10px;
             font-size: 13px;
-            margin-bottom: 22px;
+            margin-bottom: 20px;
             display: flex;
             align-items: center;
             gap: 10px;
         }
 
         .form-group {
-            margin-bottom: 18px;
+            margin-bottom: 16px;
         }
 
         label {
@@ -139,7 +139,7 @@
             font-size: 13px;
             font-weight: 600;
             color: #d1d5db;
-            margin-bottom: 8px;
+            margin-bottom: 7px;
         }
 
         input {
@@ -147,7 +147,7 @@
             background: #0a0e17;
             border: 1px solid #1f2937;
             border-radius: 10px;
-            padding: 13px 16px;
+            padding: 12px 15px;
             color: #f9fafb;
             font-size: 14px;
             font-family: inherit;
@@ -165,19 +165,19 @@
             display: block;
             font-size: 11.5px;
             color: #6b7280;
-            margin-top: 6px;
+            margin-top: 5px;
         }
 
         .security-badge {
             background: rgba(16, 185, 129, 0.08);
             border: 1px solid rgba(16, 185, 129, 0.2);
             border-radius: 10px;
-            padding: 10px 14px;
-            margin: 20px 0;
+            padding: 9px 12px;
+            margin: 18px 0;
             display: flex;
             align-items: center;
-            gap: 10px;
-            font-size: 12px;
+            gap: 8px;
+            font-size: 11.5px;
             color: #a7f3d0;
         }
 
@@ -187,7 +187,7 @@
             color: #070b12;
             border: none;
             border-radius: 10px;
-            padding: 14px;
+            padding: 13px;
             font-size: 14px;
             font-weight: 700;
             cursor: pointer;
@@ -204,14 +204,16 @@
             box-shadow: 0 6px 22px rgba(16, 185, 129, 0.35);
         }
 
-        .submit-btn:active {
-            transform: translateY(0);
+        .submit-btn:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+            transform: none;
         }
 
         .footer-links {
             text-align: center;
-            margin-top: 24px;
-            padding-top: 20px;
+            margin-top: 22px;
+            padding-top: 18px;
             border-top: 1px solid rgba(31, 41, 55, 0.6);
             font-size: 13px;
             color: var(--text-muted);
@@ -230,7 +232,7 @@
 
         .home-link {
             display: inline-block;
-            margin-top: 12px;
+            margin-top: 10px;
             font-size: 12.5px;
             color: #6b7280 !important;
         }
@@ -249,7 +251,7 @@
         <div class="brand-header">
             <div class="brand-logo">🛡️</div>
             <h1>Create <span>Account</span></h1>
-            <p class="subtitle">Join TrustVault's secure document ecosystem</p>
+            <p class="subtitle">Join TrustVault's secure confidential document portal</p>
         </div>
 
         <div id="alertBox" class="alert-box" style="{% if not error %}display:none;{% endif %}">
@@ -261,20 +263,29 @@
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
             <div class="form-group">
-                <label for="username">Username or Email Address</label>
-                <input id="username" name="username" type="text" placeholder="e.g. akshaya or user@example.com" required minlength="3" maxlength="80" autofocus autocomplete="username">
-                <span class="input-hint">At least 3 characters. Works with username or email.</span>
+                <label for="fullName">Full Name</label>
+                <input id="fullName" name="fullName" type="text" placeholder="e.g. Akshaya Kumar" required autocomplete="name" autofocus>
             </div>
 
             <div class="form-group">
-                <label for="password">Strong Password</label>
+                <label for="email">Email Address</label>
+                <input id="email" name="email" type="email" placeholder="e.g. akshaya@example.com" required autocomplete="email">
+                <span class="input-hint">Your email will be used for secure vault notifications &amp; login.</span>
+            </div>
+
+            <div class="form-group">
+                <label for="password">Password</label>
                 <input id="password" name="password" type="password" placeholder="At least 8 characters" required minlength="8" autocomplete="new-password">
-                <span class="input-hint">Minimum 8 characters with numbers &amp; symbols.</span>
+            </div>
+
+            <div class="form-group">
+                <label for="confirmPassword">Confirm Password</label>
+                <input id="confirmPassword" name="confirmPassword" type="password" placeholder="Re-enter your password" required minlength="8" autocomplete="new-password">
             </div>
 
             <div class="security-badge">
                 <span>🔒</span>
-                <span>Protected by SHA-256 integrity &amp; PBKDF2 password encryption</span>
+                <span>Protected by SHA-256 cryptographic integrity &amp; PBKDF2 hashing</span>
             </div>
 
             <button id="regBtn" type="submit" class="submit-btn">
@@ -298,15 +309,43 @@
 
         form.addEventListener('submit', async function(e) {
             e.preventDefault();
+
+            const fullName = document.getElementById('fullName').value.trim();
+            const email = document.getElementById('email').value.trim().toLowerCase();
+            const password = document.getElementById('password').value;
+            const confirmPassword = document.getElementById('confirmPassword').value;
+
+            // Client-side validations
+            if (!fullName) {
+                alertText.textContent = "Please enter your full name.";
+                alertBox.style.display = 'flex';
+                return;
+            }
+
+            if (!email || !email.includes('@') || !email.includes('.')) {
+                alertText.textContent = "Please enter a valid email address.";
+                alertBox.style.display = 'flex';
+                return;
+            }
+
+            if (password.length < 8) {
+                alertText.textContent = "Password must have at least 8 characters.";
+                alertBox.style.display = 'flex';
+                return;
+            }
+
+            if (password !== confirmPassword) {
+                alertText.textContent = "Passwords do not match. Please verify and try again.";
+                alertBox.style.display = 'flex';
+                return;
+            }
+
             btn.disabled = true;
             btnText.textContent = "Creating account...";
             alertBox.style.display = 'none';
 
-            const username = document.getElementById('username').value.trim();
-            const password = document.getElementById('password').value;
-
             try {
-                // 1. Create account via API
+                // 1. Send registration to /api/register
                 const response = await fetch('/api/register', {
                     method: 'POST',
                     credentials: 'same-origin',
@@ -315,17 +354,19 @@
                         'Accept': 'application/json'
                     },
                     body: JSON.stringify({
-                        email: username,
-                        fullName: username.split('@')[0],
-                        password: password
+                        fullName: fullName,
+                        email: email,
+                        password: password,
+                        confirmPassword: confirmPassword
                     })
                 });
 
                 const data = await response.json().catch(() => ({}));
 
                 if (response.ok) {
-                    btnText.textContent = "Logging into your Vault...";
-                    // 2. Automatically log in to establish session
+                    btnText.textContent = "Success! Opening Vault...";
+
+                    // 2. Automatically log the user in to establish active session
                     const loginResp = await fetch('/api/login', {
                         method: 'POST',
                         credentials: 'same-origin',
@@ -334,25 +375,25 @@
                             'Accept': 'application/json'
                         },
                         body: JSON.stringify({
-                            email: username,
+                            email: email,
                             password: password
                         })
                     });
 
                     if (loginResp.ok) {
-                        window.location.href = '/dashboard';
+                        window.location.replace('/dashboard');
                     } else {
-                        // Fallback to login page with message
-                        window.location.href = '/login';
+                        // Fallback to login page with registered notice
+                        window.location.replace('/login?registered=1');
                     }
                 } else {
-                    alertText.textContent = data.message || "Registration notice. Please try another username.";
+                    alertText.textContent = data.message || "Registration failed. Please try again.";
                     alertBox.style.display = 'flex';
                     btn.disabled = false;
                     btnText.textContent = "Create Account & Enter Vault";
                 }
             } catch (err) {
-                // Network error fallback to native form POST
+                // If fetch fails for network reasons, submit native form POST
                 form.submit();
             }
         });

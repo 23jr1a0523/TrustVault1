@@ -403,8 +403,14 @@
         </div>
 
         <div class="nav-actions">
+            {% if session.get('user_id') %}
+            <span style="font-size: 13.5px; color: var(--emerald); font-weight: 600;">👋 {{ session.get('username') }}</span>
+            <a class="nav-button-primary" href="{{ url_for('dashboard') }}">Open Vault Dashboard →</a>
+            <a class="nav-button-ghost" href="{{ url_for('logout') }}">Log Out</a>
+            {% else %}
             <a class="nav-button-ghost" href="{{ url_for('login') }}">Log In</a>
             <a class="nav-button-primary" href="{{ url_for('register') }}">Create Account</a>
+            {% endif %}
         </div>
     </nav>
 
@@ -426,8 +432,13 @@
                 </p>
 
                 <div class="actions">
-                    <a class="primary" href="{{ url_for('register') }}">Get Started Now →</a>
-                    <a class="secondary" href="#features">Explore Features</a>
+                    {% if session.get('user_id') %}
+                    <a class="primary" href="{{ url_for('dashboard') }}">Open Vault Dashboard →</a>
+                    <a class="secondary" href="{{ url_for('logout') }}">Log Out</a>
+                    {% else %}
+                    <a class="primary" href="{{ url_for('register') }}">Create Free Account →</a>
+                    <a class="secondary" href="{{ url_for('login') }}">Log In to Vault</a>
+                    {% endif %}
                 </div>
             </div>
 

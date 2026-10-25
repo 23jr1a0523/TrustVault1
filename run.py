@@ -282,77 +282,141 @@ def home():
     return render_template("index.html")
 
 
+# ---------------- USER REGISTRATION HELPER ----------------
+
+def register_new_user(full_name, raw_email, raw_username, password, confirm_password=None):
+    """
+    Unified validation and account creation helper for TrustVault.
+    Accepts full name, email, optional username, and password.
+    Ensures safe uniqueness checks, prevents crashes, and returns (error_msg, user_row).
+    """
+    full_name = (full_name or "").strip()
+    raw_email = (raw_email or "").strip()
+    raw_username = (raw_username or "").strip()
+    password = password or ""
+
+    if confirm_password is not None and confirm_password != password:
+        return "Passwords do not match. Please verify and try again.", None
+
+    if len(password) < 8:
+        return "Password must have at least 8 characters.", None
+
+    # Handle cases where username was entered as an email or vice-versa
+    if not raw_email and "@" in raw_username:
+        raw_email = raw_username
+        raw_username = ""
+    elif not raw_username and not ("@" in raw_email):
+        raw_username = raw_email
+        raw_email = ""
+
+    if not raw_email and not raw_username:
+        return "Please enter an email address or username.", None
+
+    email = raw_email.lower() if raw_email else None
+    if email and ("@" not in email or "." not in email):
+        return "Please enter a valid email address (e.g. user@example.com).", None
+
+    conn = get_db_connection()
+    try:
+        # 1. Check if email is already taken
+        if email:
+            existing_email = conn.execute(
+                "SELECT id FROM users WHERE email IS NOT NULL AND LOWER(email) = LOWER(?)",
+                (email,),
+            ).fetchone()
+            if existing_email:
+                return "An account with this email address already exists. Please log in.", None
+
+        # 2. Determine and verify unique username
+        if raw_username:
+            username = raw_username.strip()
+            if len(username) < 3:
+                return "Username must have at least 3 characters.", None
+            existing_user = conn.execute(
+                "SELECT id FROM users WHERE LOWER(username) = LOWER(?)",
+                (username,),
+            ).fetchone()
+            if existing_user:
+                return "This username is already taken. Please choose another username.", None
+        else:
+            # Derive safe unique username from email
+            base_user = email.split("@")[0].strip()
+            if len(base_user) < 3:
+                base_user = f"user_{base_user}"
+
+            existing_user = conn.execute(
+                "SELECT id FROM users WHERE LOWER(username) = LOWER(?)",
+                (base_user,),
+            ).fetchone()
+            if not existing_user:
+                username = base_user
+            elif len(email) <= 100 and not conn.execute("SELECT id FROM users WHERE LOWER(username) = LOWER(?)", (email,)).fetchone():
+                username = email
+            else:
+                import random
+                username = f"{base_user[:85]}_{random.randint(1000, 9999)}"
+
+        display_name = full_name if full_name else (email.split("@")[0] if email else username)
+
+        conn.execute(
+            """
+            INSERT INTO users (username, password_hash, role, email, full_name)
+            VALUES (?, ?, 'user', ?, ?)
+            """,
+            (username, generate_password_hash(password), email, display_name),
+        )
+        conn.commit()
+
+        new_user = conn.execute(
+            "SELECT id, username, role, email, full_name FROM users WHERE LOWER(username) = LOWER(?)",
+            (username,),
+        ).fetchone()
+
+        log_audit(action="REGISTER", status="SUCCESS", details=f"User registered: {username} ({email or 'no email'})")
+        return None, new_user
+
+    except Exception as e:
+        conn.rollback()
+        logger.error(f"register_new_user error: {e}")
+        err_msg = str(e).lower()
+        if "unique" in err_msg or "duplicate" in err_msg:
+            return "This username or email is already taken. Please choose another.", None
+        return f"Registration error: {str(e)[:120]}", None
+    finally:
+        conn.close()
+
+
 # ---------------- REGISTER ----------------
 
 @app.route("/register", methods=["GET", "POST"])
 @app.route("/register.html", methods=["GET", "POST"])
 def register():
+    if get_current_user_id():
+        return redirect(url_for("dashboard"))
+
     error = None
 
     if request.method == "POST":
-        raw_user = request.form.get("username", "").strip() or request.form.get("name", "").strip()
-        raw_email = request.form.get("email", "").strip() or raw_user
+        full_name = request.form.get("fullName") or request.form.get("name") or request.form.get("full_name") or ""
+        email = request.form.get("email", "")
+        username = request.form.get("username", "")
         password = request.form.get("password", "")
+        confirm_password = request.form.get("confirmPassword") or request.form.get("confirm_password")
 
-        username = raw_user.split("@")[0] if "@" in raw_user else raw_user
-        email = raw_email if "@" in raw_email else f"{username}@trustvault.local"
-
-        if len(username) < 3:
-            error = "Username must have at least 3 characters."
-        elif len(password) < 8:
-            error = "Password must have at least 8 characters."
+        err, new_user = register_new_user(full_name, email, username, password, confirm_password)
+        if err:
+            error = err
+            log_audit(action="REGISTER_FAILED", status="DENIED", details=f"Registration failed for {email or username}: {err}")
         else:
-            connection = get_db_connection()
-            try:
-                # Check case-insensitively if username or email exists
-                existing = connection.execute(
-                    "SELECT id FROM users WHERE LOWER(username) = LOWER(?) OR (email IS NOT NULL AND LOWER(email) = LOWER(?))",
-                    (username, email),
-                ).fetchone()
-
-                if existing:
-                    error = "Username or email is already taken. Please choose another."
-                else:
-                    # Force role to 'user'. Ordinary registration cannot create administrators.
-                    connection.execute(
-                        """
-                        INSERT INTO users (username, password_hash, role, email, full_name)
-                        VALUES (?, ?, 'user', ?, ?)
-                        """,
-                        (username, generate_password_hash(password), email, username),
-                    )
-                    connection.commit()
-                    log_audit(action="REGISTER", status="SUCCESS", details=f"New user registered: {username}")
-
-                    # Automatically log in the user and redirect to dashboard
-                    new_user = connection.execute(
-                        "SELECT id, username, role, email, full_name FROM users WHERE LOWER(username) = LOWER(?)",
-                        (username,),
-                    ).fetchone()
-
-                    session.clear()
-                    session.permanent = True
-                    uid = extract_user_id(new_user)
-                    session["user_id"] = uid
-                    session["username"] = extract_field(new_user, "username", username)
-                    session["full_name"] = extract_field(new_user, "full_name", session["username"])
-                    session["role"] = extract_field(new_user, "role", "user")
-                    generate_csrf_token()
-
-                    return redirect(url_for("dashboard"))
-
-            except Exception as e:
-                connection.rollback()
-                logger.error(f"Registration error: {e}")
-                err_str = str(e).lower()
-                if "unique" in err_str or "duplicate" in err_str:
-                    error = "Username is already taken. Please choose another username."
-                else:
-                    error = f"Registration notice: {str(e)[:120]}"
-                log_audit(action="REGISTER_FAILED", status="DENIED", details=f"Registration failed for {username}: {str(e)}")
-
-            finally:
-                connection.close()
+            session.clear()
+            session.permanent = True
+            uid = extract_user_id(new_user)
+            session["user_id"] = uid
+            session["username"] = extract_field(new_user, "username")
+            session["full_name"] = extract_field(new_user, "full_name", session["username"])
+            session["role"] = extract_field(new_user, "role", "user")
+            generate_csrf_token()
+            return redirect(url_for("dashboard"))
 
     return render_template("register.html", error=error)
 
@@ -362,50 +426,56 @@ def register():
 @app.route("/login", methods=["GET", "POST"])
 @app.route("/login.html", methods=["GET", "POST"])
 def login():
+    if get_current_user_id():
+        return redirect(url_for("dashboard"))
+
     error = None
 
     if request.method == "POST":
         identifier = (request.form.get("username", "") or request.form.get("email", "")).strip()
         password = request.form.get("password", "")
 
-        connection = get_db_connection()
-        try:
-            # Case-insensitive query matches username OR email
-            user = connection.execute(
-                """
-                SELECT id, username, email, full_name, password_hash, role
-                FROM users
-                WHERE LOWER(username) = LOWER(?) OR (email IS NOT NULL AND LOWER(email) = LOWER(?))
-                """,
-                (identifier, identifier),
-            ).fetchone()
+        if not identifier or not password:
+            error = "Please enter both your email/username and password."
+        else:
+            connection = get_db_connection()
+            try:
+                # Case-insensitive query matches username OR email
+                user = connection.execute(
+                    """
+                    SELECT id, username, email, full_name, password_hash, role
+                    FROM users
+                    WHERE LOWER(username) = LOWER(?) OR (email IS NOT NULL AND LOWER(email) = LOWER(?))
+                    """,
+                    (identifier, identifier),
+                ).fetchone()
 
-            if not user:
-                log_audit(action="LOGIN_FAILED", status="DENIED", details=f"Identifier not found: {identifier}")
-                error = f"Account '{identifier}' not found. Please click 'Create an account' below to register first, or use demo / Password123!"
-            elif not check_password_hash(extract_field(user, "password_hash"), password):
-                log_audit(action="LOGIN_FAILED", status="DENIED", details=f"Wrong password for: {identifier}")
-                error = "Incorrect password. Please verify and try again."
-            else:
-                session.clear()
-                session.permanent = True
-                uid = extract_user_id(user)
-                session["user_id"] = uid
-                session["username"] = extract_field(user, "username", identifier)
-                session["full_name"] = extract_field(user, "full_name", session["username"])
-                session["role"] = extract_field(user, "role", "user")
-                generate_csrf_token()
+                if not user:
+                    log_audit(action="LOGIN_FAILED", status="DENIED", details=f"Identifier not found: {identifier}")
+                    error = f"Account '{identifier}' not found. Please click 'Create an account' below to register first, or use demo / Password123!"
+                elif not check_password_hash(extract_field(user, "password_hash"), password):
+                    log_audit(action="LOGIN_FAILED", status="DENIED", details=f"Wrong password for: {identifier}")
+                    error = "Incorrect password. Please verify and try again."
+                else:
+                    session.clear()
+                    session.permanent = True
+                    uid = extract_user_id(user)
+                    session["user_id"] = uid
+                    session["username"] = extract_field(user, "username", identifier)
+                    session["full_name"] = extract_field(user, "full_name", session["username"])
+                    session["role"] = extract_field(user, "role", "user")
+                    generate_csrf_token()
 
-                log_audit(action="LOGIN", status="SUCCESS", details=f"User logged in: {identifier}")
-                return redirect(url_for("dashboard"))
-        except Exception as e:
-            logger.error(f"Login error: {e}")
-            error = f"Login notice: {str(e)[:120]}"
-            log_audit(action="LOGIN_ERROR", status="DENIED", details=str(e))
-        finally:
-            connection.close()
+                    log_audit(action="LOGIN", status="SUCCESS", details=f"User logged in: {identifier}")
+                    return redirect(url_for("dashboard"))
+            except Exception as e:
+                logger.error(f"Login error: {e}")
+                error = f"Login notice: {str(e)[:120]}"
+                log_audit(action="LOGIN_ERROR", status="DENIED", details=str(e))
+            finally:
+                connection.close()
 
-    return render_template("login.html", error=error)
+    return render_template("login.html", error=error, registered=request.args.get("registered"))
 
 
 @app.route("/logout")
@@ -421,43 +491,22 @@ def logout():
 @app.route("/api/register", methods=["POST"])
 def api_register():
     data = request.get_json(silent=True) or request.form or {}
-    full_name = (data.get("fullName") or data.get("full_name") or data.get("name") or "").strip()
-    raw_id = (data.get("email") or data.get("username") or "").strip()
+    full_name = data.get("fullName") or data.get("full_name") or data.get("name") or ""
+    email = data.get("email") or ""
+    username = data.get("username") or ""
     password = data.get("password") or ""
-    username = raw_id.split("@")[0] if "@" in raw_id else raw_id
-    email = raw_id if "@" in raw_id else f"{username}@trustvault.local"
+    confirm_password = data.get("confirmPassword") or data.get("confirm_password")
 
-    if len(username) < 3:
-        return jsonify({"message": "Username or email must have at least 3 characters."}), 400
-    if len(password) < 8:
-        return jsonify({"message": "Password must have at least 8 characters."}), 400
+    err, user_row = register_new_user(full_name, email, username, password, confirm_password)
+    if err:
+        return jsonify({"ok": False, "message": err}), 400
 
-    conn = get_db_connection()
-    try:
-        existing = conn.execute(
-            "SELECT id FROM users WHERE LOWER(username) = LOWER(?) OR (email IS NOT NULL AND LOWER(email) = LOWER(?))",
-            (username, email),
-        ).fetchone()
-
-        if existing:
-            return jsonify({"message": "An account with that username or email already exists."}), 400
-
-        conn.execute(
-            """
-            INSERT INTO users (username, password_hash, role, email, full_name)
-            VALUES (?, ?, 'user', ?, ?)
-            """,
-            (username, generate_password_hash(password), email, full_name or username),
-        )
-        conn.commit()
-        log_audit(action="REGISTER", status="SUCCESS", details=f"New API user registered: {username}")
-        return jsonify({"ok": True, "message": "Account created successfully!"}), 201
-    except Exception as e:
-        conn.rollback()
-        logger.error(f"API register error: {e}")
-        return jsonify({"message": f"Registration error: {str(e)[:120]}"}), 400
-    finally:
-        conn.close()
+    return jsonify({
+        "ok": True,
+        "message": "Account created successfully!",
+        "username": extract_field(user_row, "username"),
+        "fullName": extract_field(user_row, "full_name")
+    }), 201
 
 
 @app.route("/api/login", methods=["POST"])
@@ -467,7 +516,7 @@ def api_login():
     password = data.get("password") or ""
 
     if not identifier or not password:
-        return jsonify({"message": "Email/username and password are required."}), 400
+        return jsonify({"ok": False, "message": "Email or username and password are required."}), 400
 
     conn = get_db_connection()
     try:
@@ -484,11 +533,11 @@ def api_login():
 
     if not user:
         log_audit(action="LOGIN_FAILED", status="DENIED", details=f"API identifier not found: {identifier}")
-        return jsonify({"message": f"Account '{identifier}' not found. Please register first."}), 404
+        return jsonify({"ok": False, "message": f"Account '{identifier}' not found. Please click 'Create Account' to register first."}), 404
 
     if not check_password_hash(extract_field(user, "password_hash"), password):
         log_audit(action="LOGIN_FAILED", status="DENIED", details=f"Wrong password for: {identifier}")
-        return jsonify({"message": "Incorrect password. Please verify and try again."}), 401
+        return jsonify({"ok": False, "message": "Incorrect password. Please verify and try again."}), 401
 
     session.clear()
     session.permanent = True
