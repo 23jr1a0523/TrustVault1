@@ -200,6 +200,8 @@ def init_db():
             conn.execute("ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS ip_address VARCHAR(45)")
             conn.execute("ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS details TEXT")
             conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS role VARCHAR(20) DEFAULT 'user'")
+            conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS email VARCHAR(255)")
+            conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS full_name VARCHAR(255)")
         else:
             # Check and add missing columns to documents in SQLite
             cursor = conn.execute("PRAGMA table_info(documents)")
@@ -221,11 +223,15 @@ def init_db():
             if "details" not in existing_audit_cols:
                 conn.execute("ALTER TABLE audit_logs ADD COLUMN details TEXT")
 
-            # Check and add missing role column to users in SQLite
+            # Check and add missing columns to users in SQLite
             cursor = conn.execute("PRAGMA table_info(users)")
             existing_user_cols = [row["name"] for row in cursor.fetchall()]
             if "role" not in existing_user_cols:
                 conn.execute("ALTER TABLE users ADD COLUMN role TEXT DEFAULT 'user'")
+            if "email" not in existing_user_cols:
+                conn.execute("ALTER TABLE users ADD COLUMN email TEXT")
+            if "full_name" not in existing_user_cols:
+                conn.execute("ALTER TABLE users ADD COLUMN full_name TEXT")
 
         # Seed default test users if they do not exist
         try:
@@ -233,14 +239,14 @@ def init_db():
             admin_check = conn.execute("SELECT id FROM users WHERE LOWER(username) = 'admin'").fetchone()
             if not admin_check:
                 conn.execute(
-                    "INSERT INTO users (username, password_hash, role) VALUES (?, ?, 'admin')",
+                    "INSERT INTO users (username, password_hash, role, email, full_name) VALUES (?, ?, 'admin', 'admin@trustvault.com', 'System Admin')",
                     ("admin", generate_password_hash("AdminPassword123!"))
                 )
 
             demo_check = conn.execute("SELECT id FROM users WHERE LOWER(username) = 'demo'").fetchone()
             if not demo_check:
                 conn.execute(
-                    "INSERT INTO users (username, password_hash, role) VALUES (?, ?, 'user')",
+                    "INSERT INTO users (username, password_hash, role, email, full_name) VALUES (?, ?, 'user', 'demo@trustvault.com', 'Demo User')",
                     ("demo", generate_password_hash("Password123!"))
                 )
         except Exception as seed_err:

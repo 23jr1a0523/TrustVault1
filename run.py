@@ -281,12 +281,17 @@ def home():
 # ---------------- REGISTER ----------------
 
 @app.route("/register", methods=["GET", "POST"])
+@app.route("/register.html", methods=["GET", "POST"])
 def register():
     error = None
 
     if request.method == "POST":
-        username = request.form.get("username", "").strip()
+        raw_user = request.form.get("username", "").strip() or request.form.get("name", "").strip()
+        raw_email = request.form.get("email", "").strip() or raw_user
         password = request.form.get("password", "")
+
+        username = raw_user.split("@")[0] if "@" in raw_user else raw_user
+        email = raw_email if "@" in raw_email else f"{username}@trustvault.local"
 
         if len(username) < 3:
             error = "Username must have at least 3 characters."
@@ -295,29 +300,29 @@ def register():
         else:
             connection = get_db_connection()
             try:
-                # Check case-insensitively if username exists
+                # Check case-insensitively if username or email exists
                 existing = connection.execute(
-                    "SELECT id FROM users WHERE LOWER(username) = LOWER(?)",
-                    (username,),
+                    "SELECT id FROM users WHERE LOWER(username) = LOWER(?) OR (email IS NOT NULL AND LOWER(email) = LOWER(?))",
+                    (username, email),
                 ).fetchone()
 
                 if existing:
-                    error = "Username is already taken. Please choose another."
+                    error = "Username or email is already taken. Please choose another."
                 else:
                     # Force role to 'user'. Ordinary registration cannot create administrators.
                     connection.execute(
                         """
-                        INSERT INTO users (username, password_hash, role)
-                        VALUES (?, ?, 'user')
+                        INSERT INTO users (username, password_hash, role, email, full_name)
+                        VALUES (?, ?, 'user', ?, ?)
                         """,
-                        (username, generate_password_hash(password)),
+                        (username, generate_password_hash(password), email, username),
                     )
                     connection.commit()
                     log_audit(action="REGISTER", status="SUCCESS", details=f"New user registered: {username}")
 
                     # Automatically log in the user and redirect to dashboard
                     new_user = connection.execute(
-                        "SELECT id, username, role FROM users WHERE LOWER(username) = LOWER(?)",
+                        "SELECT id, username, role, email, full_name FROM users WHERE LOWER(username) = LOWER(?)",
                         (username,),
                     ).fetchone()
 
@@ -326,6 +331,7 @@ def register():
                     uid = extract_user_id(new_user)
                     session["user_id"] = uid
                     session["username"] = extract_field(new_user, "username", username)
+                    session["full_name"] = extract_field(new_user, "full_name", session["username"])
                     session["role"] = extract_field(new_user, "role", "user")
                     generate_csrf_token()
 
@@ -350,37 +356,43 @@ def register():
 # ---------------- LOGIN & LOGOUT ----------------
 
 @app.route("/login", methods=["GET", "POST"])
+@app.route("/login.html", methods=["GET", "POST"])
 def login():
     error = None
 
     if request.method == "POST":
-        username = request.form.get("username", "").strip()
+        identifier = (request.form.get("username", "") or request.form.get("email", "")).strip()
         password = request.form.get("password", "")
 
         connection = get_db_connection()
         try:
-            # Case-insensitive query handles any mobile capitalization
+            # Case-insensitive query matches username OR email
             user = connection.execute(
-                "SELECT id, username, password_hash, role FROM users WHERE LOWER(username) = LOWER(?)",
-                (username,),
+                """
+                SELECT id, username, email, full_name, password_hash, role
+                FROM users
+                WHERE LOWER(username) = LOWER(?) OR (email IS NOT NULL AND LOWER(email) = LOWER(?))
+                """,
+                (identifier, identifier),
             ).fetchone()
 
             if not user:
-                log_audit(action="LOGIN_FAILED", status="DENIED", details=f"Username not found: {username}")
-                error = f"Username '{username}' not found. Please click 'Create an account' below to register first, or use demo / Password123!"
+                log_audit(action="LOGIN_FAILED", status="DENIED", details=f"Identifier not found: {identifier}")
+                error = f"Account '{identifier}' not found. Please click 'Create an account' below to register first, or use demo / Password123!"
             elif not check_password_hash(extract_field(user, "password_hash"), password):
-                log_audit(action="LOGIN_FAILED", status="DENIED", details=f"Wrong password for: {username}")
+                log_audit(action="LOGIN_FAILED", status="DENIED", details=f"Wrong password for: {identifier}")
                 error = "Incorrect password. Please verify and try again."
             else:
                 session.clear()
                 session.permanent = True
                 uid = extract_user_id(user)
                 session["user_id"] = uid
-                session["username"] = extract_field(user, "username", username)
+                session["username"] = extract_field(user, "username", identifier)
+                session["full_name"] = extract_field(user, "full_name", session["username"])
                 session["role"] = extract_field(user, "role", "user")
                 generate_csrf_token()
 
-                log_audit(action="LOGIN", status="SUCCESS", details=f"User logged in: {username}")
+                log_audit(action="LOGIN", status="SUCCESS", details=f"User logged in: {identifier}")
                 return redirect(url_for("dashboard"))
         except Exception as e:
             logger.error(f"Login error: {e}")
@@ -398,6 +410,123 @@ def logout():
     log_audit(action="LOGOUT", status="SUCCESS", details=f"User logged out: {username}")
     session.clear()
     return redirect(url_for("home"))
+
+
+# ---------------- REST API AUTH ENDPOINTS (REFERENCE SPEC) ----------------
+
+@app.route("/api/register", methods=["POST"])
+def api_register():
+    data = request.get_json(silent=True) or request.form or {}
+    full_name = (data.get("fullName") or data.get("full_name") or data.get("name") or "").strip()
+    raw_id = (data.get("email") or data.get("username") or "").strip()
+    password = data.get("password") or ""
+    username = raw_id.split("@")[0] if "@" in raw_id else raw_id
+    email = raw_id if "@" in raw_id else f"{username}@trustvault.local"
+
+    if len(username) < 3:
+        return jsonify({"message": "Username or email must have at least 3 characters."}), 400
+    if len(password) < 8:
+        return jsonify({"message": "Password must have at least 8 characters."}), 400
+
+    conn = get_db_connection()
+    try:
+        existing = conn.execute(
+            "SELECT id FROM users WHERE LOWER(username) = LOWER(?) OR (email IS NOT NULL AND LOWER(email) = LOWER(?))",
+            (username, email),
+        ).fetchone()
+
+        if existing:
+            return jsonify({"message": "An account with that username or email already exists."}), 400
+
+        conn.execute(
+            """
+            INSERT INTO users (username, password_hash, role, email, full_name)
+            VALUES (?, ?, 'user', ?, ?)
+            """,
+            (username, generate_password_hash(password), email, full_name or username),
+        )
+        conn.commit()
+        log_audit(action="REGISTER", status="SUCCESS", details=f"New API user registered: {username}")
+        return jsonify({"ok": True, "message": "Account created successfully!"}), 201
+    except Exception as e:
+        conn.rollback()
+        logger.error(f"API register error: {e}")
+        return jsonify({"message": f"Registration error: {str(e)[:120]}"}), 400
+    finally:
+        conn.close()
+
+
+@app.route("/api/login", methods=["POST"])
+def api_login():
+    data = request.get_json(silent=True) or request.form or {}
+    identifier = (data.get("email") or data.get("username") or "").strip()
+    password = data.get("password") or ""
+
+    if not identifier or not password:
+        return jsonify({"message": "Email/username and password are required."}), 400
+
+    conn = get_db_connection()
+    try:
+        user = conn.execute(
+            """
+            SELECT id, username, email, full_name, password_hash, role
+            FROM users
+            WHERE LOWER(username) = LOWER(?) OR (email IS NOT NULL AND LOWER(email) = LOWER(?))
+            """,
+            (identifier, identifier),
+        ).fetchone()
+    finally:
+        conn.close()
+
+    if not user:
+        log_audit(action="LOGIN_FAILED", status="DENIED", details=f"API identifier not found: {identifier}")
+        return jsonify({"message": f"Account '{identifier}' not found. Please register first."}), 404
+
+    if not check_password_hash(extract_field(user, "password_hash"), password):
+        log_audit(action="LOGIN_FAILED", status="DENIED", details=f"Wrong password for: {identifier}")
+        return jsonify({"message": "Incorrect password. Please verify and try again."}), 401
+
+    session.clear()
+    session.permanent = True
+    uid = extract_user_id(user)
+    session["user_id"] = uid
+    session["username"] = extract_field(user, "username", identifier)
+    session["full_name"] = extract_field(user, "full_name", session["username"])
+    session["role"] = extract_field(user, "role", "user")
+    generate_csrf_token()
+
+    log_audit(action="LOGIN", status="SUCCESS", details=f"User logged in via API: {identifier}")
+    return jsonify({
+        "ok": True,
+        "message": "Login successful. Opening your workspace...",
+        "user": {
+            "id": uid,
+            "username": session["username"],
+            "fullName": session.get("full_name") or session["username"],
+            "role": session["role"],
+        }
+    }), 200
+
+
+@app.route("/api/auth/me", methods=["GET"])
+def api_auth_me():
+    user_id = get_current_user_id()
+    if not user_id:
+        return jsonify({"message": "Unauthorized"}), 401
+    return jsonify({
+        "id": user_id,
+        "username": session.get("username"),
+        "fullName": session.get("full_name") or session.get("username", "TrustVault User"),
+        "role": session.get("role", "user")
+    }), 200
+
+
+@app.route("/api/logout", methods=["GET", "POST"])
+def api_logout():
+    username = session.get("username")
+    log_audit(action="LOGOUT", status="SUCCESS", details=f"User logged out via API: {username}")
+    session.clear()
+    return jsonify({"ok": True, "message": "Logged out successfully"}), 200
 
 
 # ---------------- PROFILE & PASSWORD CHANGE ----------------
@@ -439,6 +568,7 @@ def profile():
 # ---------------- DASHBOARD ----------------
 
 @app.route("/dashboard")
+@app.route("/dashboard.html")
 @login_required
 def dashboard():
     user_id = get_current_user_id()
@@ -563,6 +693,7 @@ def ai_chat():
 # ---------------- LIST DOCUMENTS (OWNED & SHARED) ----------------
 
 @app.route("/documents")
+@app.route("/documents.html")
 @login_required
 def documents():
     user_id = get_current_user_id()
@@ -1114,6 +1245,7 @@ def delete_document(document_id):
 
 @app.route("/admin/audit-logs")
 @app.route("/audit-logs")
+@app.route("/activity-logs.html")
 @admin_required
 def audit_logs():
     connection = get_db_connection()

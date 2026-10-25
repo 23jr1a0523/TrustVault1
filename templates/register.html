@@ -252,20 +252,18 @@
             <p class="subtitle">Join TrustVault's secure document ecosystem</p>
         </div>
 
-        {% if error %}
-            <div class="alert-box">
-                <span>⚠️</span>
-                <span>{{ error }}</span>
-            </div>
-        {% endif %}
+        <div id="alertBox" class="alert-box" style="{% if not error %}display:none;{% endif %}">
+            <span>⚠️</span>
+            <span id="alertText">{{ error or '' }}</span>
+        </div>
 
-        <form method="POST" action="/register">
+        <form id="regForm" method="POST" action="/register">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
             <div class="form-group">
-                <label for="username">Desired Username</label>
-                <input id="username" name="username" type="text" placeholder="e.g. akshaya2026" required minlength="3" maxlength="50" autofocus autocomplete="username">
-                <span class="input-hint">At least 3 characters. Case-insensitive lookup enabled.</span>
+                <label for="username">Username or Email Address</label>
+                <input id="username" name="username" type="text" placeholder="e.g. akshaya or user@example.com" required minlength="3" maxlength="80" autofocus autocomplete="username">
+                <span class="input-hint">At least 3 characters. Works with username or email.</span>
             </div>
 
             <div class="form-group">
@@ -279,9 +277,9 @@
                 <span>Protected by SHA-256 integrity &amp; PBKDF2 password encryption</span>
             </div>
 
-            <button type="submit" class="submit-btn">
-                <span>Create Account &amp; Enter Vault</span>
-                <span>→</span>
+            <button id="regBtn" type="submit" class="submit-btn">
+                <span id="regBtnText">Create Account &amp; Enter Vault</span>
+                <span id="regBtnArrow">→</span>
             </button>
         </form>
 
@@ -291,5 +289,73 @@
         </div>
     </div>
 
+    <script>
+        const form = document.getElementById('regForm');
+        const btn = document.getElementById('regBtn');
+        const btnText = document.getElementById('regBtnText');
+        const alertBox = document.getElementById('alertBox');
+        const alertText = document.getElementById('alertText');
+
+        form.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            btn.disabled = true;
+            btnText.textContent = "Creating account...";
+            alertBox.style.display = 'none';
+
+            const username = document.getElementById('username').value.trim();
+            const password = document.getElementById('password').value;
+
+            try {
+                // 1. Create account via API
+                const response = await fetch('/api/register', {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        email: username,
+                        fullName: username.split('@')[0],
+                        password: password
+                    })
+                });
+
+                const data = await response.json().catch(() => ({}));
+
+                if (response.ok) {
+                    btnText.textContent = "Logging into your Vault...";
+                    // 2. Automatically log in to establish session
+                    const loginResp = await fetch('/api/login', {
+                        method: 'POST',
+                        credentials: 'same-origin',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            email: username,
+                            password: password
+                        })
+                    });
+
+                    if (loginResp.ok) {
+                        window.location.href = '/dashboard';
+                    } else {
+                        // Fallback to login page with message
+                        window.location.href = '/login';
+                    }
+                } else {
+                    alertText.textContent = data.message || "Registration notice. Please try another username.";
+                    alertBox.style.display = 'flex';
+                    btn.disabled = false;
+                    btnText.textContent = "Create Account & Enter Vault";
+                }
+            } catch (err) {
+                // Network error fallback to native form POST
+                form.submit();
+            }
+        });
+    </script>
 </body>
 </html>
