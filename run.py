@@ -86,6 +86,8 @@ app.jinja_env.globals["csrf_token"] = generate_csrf_token
 
 @app.before_request
 def csrf_protect():
+    if app.config.get("TESTING") and not app.config.get("WTF_CSRF_ENABLED", True):
+        return
     if request.method in ("POST", "PUT", "DELETE", "PATCH"):
         # Allow internal JSON API endpoints
         if request.path.startswith("/api/"):
@@ -125,12 +127,32 @@ def log_audit(action, document_name=None, status="SUCCESS", details=None):
         logger.error(f"Audit log recording error: {e}")
 
 
-# ---------------- ACCESS CONTROL DECORATORS ----------------
+# ---------------- ACCESS CONTROL DECORATORS & HELPERS ----------------
+
+def get_current_user_id():
+    """Returns current user's integer ID, self-healing from username if session is partially populated."""
+    user_id = session.get("user_id")
+    if not user_id:
+        username = session.get("username")
+        if username:
+            conn = get_db_connection()
+            try:
+                u = conn.execute("SELECT id FROM users WHERE LOWER(username) = LOWER(?)", (username,)).fetchone()
+                if u:
+                    uid = u["id"] if ("id" in u.keys() and u["id"] is not None) else u[0]
+                    user_id = int(uid)
+                    session["user_id"] = user_id
+            except Exception as e:
+                logger.error(f"Error self-healing user session: {e}")
+            finally:
+                conn.close()
+    return user_id
+
 
 def login_required(view):
     @wraps(view)
     def wrapped(*args, **kwargs):
-        if "user_id" not in session:
+        if not get_current_user_id():
             return redirect(url_for("login"))
         return view(*args, **kwargs)
 
@@ -140,7 +162,7 @@ def login_required(view):
 def admin_required(view):
     @wraps(view)
     def wrapped(*args, **kwargs):
-        if "user_id" not in session:
+        if not get_current_user_id():
             return redirect(url_for("login"))
         if session.get("role") != "admin":
             log_audit(
@@ -299,7 +321,9 @@ def logout():
 def profile():
     message = None
     error = None
-    user_id = session["user_id"]
+    user_id = get_current_user_id()
+    if not user_id:
+        return redirect(url_for("login"))
 
     if request.method == "POST":
         current_password = request.form.get("current_password", "")
@@ -331,20 +355,7 @@ def profile():
 @app.route("/dashboard")
 @login_required
 def dashboard():
-    user_id = session.get("user_id")
-    if not user_id:
-        username = session.get("username")
-        if username:
-            conn = get_db_connection()
-            try:
-                u = conn.execute("SELECT id FROM users WHERE LOWER(username) = LOWER(?)", (username,)).fetchone()
-                if u:
-                    uid = u["id"] if ("id" in u.keys() and u["id"] is not None) else u[0]
-                    user_id = int(uid)
-                    session["user_id"] = user_id
-            finally:
-                conn.close()
-
+    user_id = get_current_user_id()
     if not user_id:
         return redirect(url_for("login"))
 
@@ -468,20 +479,7 @@ def ai_chat():
 @app.route("/documents")
 @login_required
 def documents():
-    user_id = session.get("user_id")
-    if not user_id:
-        username = session.get("username")
-        if username:
-            conn = get_db_connection()
-            try:
-                u = conn.execute("SELECT id FROM users WHERE LOWER(username) = LOWER(?)", (username,)).fetchone()
-                if u:
-                    uid = u["id"] if ("id" in u.keys() and u["id"] is not None) else u[0]
-                    user_id = int(uid)
-                    session["user_id"] = user_id
-            finally:
-                conn.close()
-
+    user_id = get_current_user_id()
     if not user_id:
         return redirect(url_for("login"))
 
@@ -567,23 +565,14 @@ def documents():
 
 # ---------------- UPLOAD DOCUMENT (SUPABASE STORAGE) ----------------
 
-@app.route("/documents/upload", methods=["POST"])
+@app.route("/documents/upload", methods=["GET", "POST"])
+@app.route("/upload", methods=["GET", "POST"])
 @login_required
 def upload_document():
-    user_id = session.get("user_id")
-    if not user_id:
-        username = session.get("username")
-        if username:
-            conn = get_db_connection()
-            try:
-                u = conn.execute("SELECT id FROM users WHERE LOWER(username) = LOWER(?)", (username,)).fetchone()
-                if u:
-                    uid = u["id"] if ("id" in u.keys() and u["id"] is not None) else u[0]
-                    user_id = int(uid)
-                    session["user_id"] = user_id
-            finally:
-                conn.close()
+    if request.method == "GET":
+        return redirect(url_for("documents"))
 
+    user_id = get_current_user_id()
     if not user_id:
         return redirect(url_for("login"))
 
@@ -693,9 +682,12 @@ def upload_document():
 # ---------------- DOWNLOAD DOCUMENT (AUTHENTICATED & VERIFIED) ----------------
 
 @app.route("/documents/download/<int:document_id>")
+@app.route("/download/<int:document_id>")
 @login_required
 def download_document(document_id):
-    current_user_id = session["user_id"]
+    current_user_id = get_current_user_id()
+    if not current_user_id:
+        return redirect(url_for("login"))
     is_admin = session.get("role") == "admin"
 
     connection = get_db_connection()
@@ -810,13 +802,16 @@ def download_document(document_id):
 # ---------------- SHORT-LIVED SIGNED DOWNLOAD URL ----------------
 
 @app.route("/documents/signed-url/<int:document_id>")
+@app.route("/signed-url/<int:document_id>")
 @login_required
 def signed_download_url(document_id):
     """
     Generates a 60-second temporary signed bearer URL for authorized downloads.
     Only called AFTER verifying authentication and ownership/sharing permissions.
     """
-    current_user_id = session["user_id"]
+    current_user_id = get_current_user_id()
+    if not current_user_id:
+        return jsonify({"error": "Unauthorized"}), 401
     is_admin = session.get("role") == "admin"
 
     connection = get_db_connection()
@@ -863,9 +858,12 @@ def signed_download_url(document_id):
 # ---------------- SHARING & PERMISSIONS (OWNER CONTROL) ----------------
 
 @app.route("/documents/share/<int:document_id>", methods=["POST"])
+@app.route("/share/<int:document_id>", methods=["POST"])
 @login_required
 def share_document(document_id):
-    current_user_id = session["user_id"]
+    current_user_id = get_current_user_id()
+    if not current_user_id:
+        return redirect(url_for("login"))
     target_username = request.form.get("target_username", "").strip()
     permission = request.form.get("permission", "READ").strip().upper()
     if permission not in ("READ", "EDIT"):
@@ -933,9 +931,12 @@ def share_document(document_id):
 
 
 @app.route("/documents/revoke/<int:permission_id>", methods=["POST"])
+@app.route("/revoke/<int:permission_id>", methods=["POST"])
 @login_required
 def revoke_permission(permission_id):
-    current_user_id = session["user_id"]
+    current_user_id = get_current_user_id()
+    if not current_user_id:
+        return redirect(url_for("login"))
 
     conn = get_db_connection()
     try:
@@ -981,9 +982,12 @@ def revoke_permission(permission_id):
 # ---------------- DOCUMENT DELETION (OWNER ONLY) ----------------
 
 @app.route("/documents/delete/<int:document_id>", methods=["POST"])
+@app.route("/delete/<int:document_id>", methods=["POST"])
 @login_required
 def delete_document(document_id):
-    current_user_id = session["user_id"]
+    current_user_id = get_current_user_id()
+    if not current_user_id:
+        return redirect(url_for("login"))
 
     conn = get_db_connection()
     try:
@@ -1023,6 +1027,7 @@ def delete_document(document_id):
 # ---------------- ADMIN AUDIT LOGS ----------------
 
 @app.route("/admin/audit-logs")
+@app.route("/audit-logs")
 @admin_required
 def audit_logs():
     connection = get_db_connection()
@@ -1045,6 +1050,7 @@ def audit_logs():
 # ---------------- ADMIN USERS ----------------
 
 @app.route("/admin/users")
+@app.route("/admin-users")
 @admin_required
 def admin_users():
     connection = get_db_connection()
