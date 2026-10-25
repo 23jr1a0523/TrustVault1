@@ -60,10 +60,20 @@ def get_db_connection():
     return connection
 
 
-def is_postgres() -> bool:
+def is_postgres(conn=None) -> bool:
     """Checks if the active connection uses PostgreSQL."""
+    if conn is not None:
+        return isinstance(conn, PostgresConnectionWrapper)
     db_url = os.environ.get("DATABASE_URL", "").strip()
-    return bool(db_url and not db_url.startswith("postgresql://postgres.your-project-ref"))
+    if db_url and not db_url.startswith("postgresql://postgres.your-project-ref"):
+        try:
+            import psycopg2
+            c = psycopg2.connect(db_url)
+            c.close()
+            return True
+        except Exception:
+            return False
+    return False
 
 
 def init_db():
@@ -72,7 +82,7 @@ def init_db():
     Safely creates tables for users, documents, permissions, and audit logs.
     """
     conn = get_db_connection()
-    use_pg = is_postgres()
+    use_pg = isinstance(conn, PostgresConnectionWrapper)
 
     try:
         # 1. Users Table
@@ -84,6 +94,8 @@ def init_db():
                     password_hash TEXT NOT NULL,
                     role VARCHAR(20) NOT NULL DEFAULT 'user'
                         CHECK (role IN ('user', 'admin')),
+                    email VARCHAR(255),
+                    full_name VARCHAR(255),
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
             """)
@@ -95,6 +107,8 @@ def init_db():
                     password_hash TEXT NOT NULL,
                     role TEXT NOT NULL DEFAULT 'user'
                         CHECK (role IN ('user', 'admin')),
+                    email TEXT,
+                    full_name TEXT,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
             """)
@@ -130,7 +144,7 @@ def init_db():
                 )
             """)
 
-        # 3. Document Permissions Table (for Viewer / Cross-User Sharing)
+        # 3. Document Permissions Table
         if use_pg:
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS document_permissions (
@@ -190,48 +204,66 @@ def init_db():
                 )
             """)
 
+        conn.commit()
+
         # Backward compatibility column migrations for existing databases
         if use_pg:
-            # PostgreSQL column migrations
-            conn.execute("ALTER TABLE documents ADD COLUMN IF NOT EXISTS storage_path TEXT")
-            conn.execute("ALTER TABLE documents ADD COLUMN IF NOT EXISTS file_size INTEGER DEFAULT 0")
-            conn.execute("ALTER TABLE documents ADD COLUMN IF NOT EXISTS category VARCHAR(50) DEFAULT 'General'")
-            conn.execute("ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'SUCCESS'")
-            conn.execute("ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS ip_address VARCHAR(45)")
-            conn.execute("ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS details TEXT")
-            conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS role VARCHAR(20) DEFAULT 'user'")
-            conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS email VARCHAR(255)")
-            conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS full_name VARCHAR(255)")
+            for sql in [
+                "ALTER TABLE documents ADD COLUMN IF NOT EXISTS storage_path TEXT",
+                "ALTER TABLE documents ADD COLUMN IF NOT EXISTS file_size INTEGER DEFAULT 0",
+                "ALTER TABLE documents ADD COLUMN IF NOT EXISTS category VARCHAR(50) DEFAULT 'General'",
+                "ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'SUCCESS'",
+                "ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS ip_address VARCHAR(45)",
+                "ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS details TEXT",
+                "ALTER TABLE users ADD COLUMN IF NOT EXISTS role VARCHAR(20) DEFAULT 'user'",
+                "ALTER TABLE users ADD COLUMN IF NOT EXISTS email VARCHAR(255)",
+                "ALTER TABLE users ADD COLUMN IF NOT EXISTS full_name VARCHAR(255)",
+            ]:
+                try:
+                    conn.execute(sql)
+                    conn.commit()
+                except Exception as ex:
+                    logger.warning(f"Postgres column migration note: {ex}")
         else:
-            # Check and add missing columns to documents in SQLite
-            cursor = conn.execute("PRAGMA table_info(documents)")
-            existing_doc_cols = [row["name"] for row in cursor.fetchall()]
-            if "storage_path" not in existing_doc_cols:
-                conn.execute("ALTER TABLE documents ADD COLUMN storage_path TEXT")
-            if "file_size" not in existing_doc_cols:
-                conn.execute("ALTER TABLE documents ADD COLUMN file_size INTEGER DEFAULT 0")
-            if "category" not in existing_doc_cols:
-                conn.execute("ALTER TABLE documents ADD COLUMN category TEXT DEFAULT 'General'")
+            # SQLite column migrations
+            try:
+                cursor = conn.execute("PRAGMA table_info(documents)")
+                doc_cols = [r[1] if isinstance(r, (tuple, list)) else r["name"] for r in cursor.fetchall()]
+                if "storage_path" not in doc_cols:
+                    conn.execute("ALTER TABLE documents ADD COLUMN storage_path TEXT")
+                if "file_size" not in doc_cols:
+                    conn.execute("ALTER TABLE documents ADD COLUMN file_size INTEGER DEFAULT 0")
+                if "category" not in doc_cols:
+                    conn.execute("ALTER TABLE documents ADD COLUMN category TEXT DEFAULT 'General'")
+                conn.commit()
+            except Exception as ex:
+                logger.warning(f"SQLite documents migration note: {ex}")
 
-            # Check and add missing columns to audit_logs in SQLite
-            cursor = conn.execute("PRAGMA table_info(audit_logs)")
-            existing_audit_cols = [row["name"] for row in cursor.fetchall()]
-            if "status" not in existing_audit_cols:
-                conn.execute("ALTER TABLE audit_logs ADD COLUMN status TEXT DEFAULT 'SUCCESS'")
-            if "ip_address" not in existing_audit_cols:
-                conn.execute("ALTER TABLE audit_logs ADD COLUMN ip_address TEXT")
-            if "details" not in existing_audit_cols:
-                conn.execute("ALTER TABLE audit_logs ADD COLUMN details TEXT")
+            try:
+                cursor = conn.execute("PRAGMA table_info(audit_logs)")
+                audit_cols = [r[1] if isinstance(r, (tuple, list)) else r["name"] for r in cursor.fetchall()]
+                if "status" not in audit_cols:
+                    conn.execute("ALTER TABLE audit_logs ADD COLUMN status TEXT DEFAULT 'SUCCESS'")
+                if "ip_address" not in audit_cols:
+                    conn.execute("ALTER TABLE audit_logs ADD COLUMN ip_address TEXT")
+                if "details" not in audit_cols:
+                    conn.execute("ALTER TABLE audit_logs ADD COLUMN details TEXT")
+                conn.commit()
+            except Exception as ex:
+                logger.warning(f"SQLite audit_logs migration note: {ex}")
 
-            # Check and add missing columns to users in SQLite
-            cursor = conn.execute("PRAGMA table_info(users)")
-            existing_user_cols = [row["name"] for row in cursor.fetchall()]
-            if "role" not in existing_user_cols:
-                conn.execute("ALTER TABLE users ADD COLUMN role TEXT DEFAULT 'user'")
-            if "email" not in existing_user_cols:
-                conn.execute("ALTER TABLE users ADD COLUMN email TEXT")
-            if "full_name" not in existing_user_cols:
-                conn.execute("ALTER TABLE users ADD COLUMN full_name TEXT")
+            try:
+                cursor = conn.execute("PRAGMA table_info(users)")
+                user_cols = [r[1] if isinstance(r, (tuple, list)) else r["name"] for r in cursor.fetchall()]
+                if "role" not in user_cols:
+                    conn.execute("ALTER TABLE users ADD COLUMN role TEXT DEFAULT 'user'")
+                if "email" not in user_cols:
+                    conn.execute("ALTER TABLE users ADD COLUMN email TEXT")
+                if "full_name" not in user_cols:
+                    conn.execute("ALTER TABLE users ADD COLUMN full_name TEXT")
+                conn.commit()
+            except Exception as ex:
+                logger.warning(f"SQLite users migration note: {ex}")
 
         # Seed default test users if they do not exist
         try:
@@ -249,10 +281,10 @@ def init_db():
                     "INSERT INTO users (username, password_hash, role, email, full_name) VALUES (?, ?, 'user', 'demo@trustvault.com', 'Demo User')",
                     ("demo", generate_password_hash("Password123!"))
                 )
+            conn.commit()
         except Exception as seed_err:
             logger.warning(f"Note on seeding default accounts: {seed_err}")
 
-        conn.commit()
     except Exception as e:
         conn.rollback()
         logger.error(f"Error initializing database: {e}")

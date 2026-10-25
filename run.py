@@ -248,23 +248,27 @@ def health_check():
     """Health check endpoint for Render deployment monitoring."""
     cols = []
     user_sample = None
-    if is_postgres():
-        conn = get_db_connection()
-        try:
+    conn = get_db_connection()
+    is_pg = is_postgres(conn)
+    try:
+        if is_pg:
             c = conn.execute("SELECT column_name, data_type FROM information_schema.columns WHERE table_name = 'users'").fetchall()
             cols = [dict(r) for r in c]
-            u = conn.execute("SELECT * FROM users LIMIT 1").fetchone()
-            if u:
-                user_sample = {k: (str(v)[:30] if k == 'password_hash' else v) for k, v in dict(u).items()}
-        except Exception as e:
-            cols = str(e)
-        finally:
-            conn.close()
+        else:
+            c = conn.execute("PRAGMA table_info(users)").fetchall()
+            cols = [dict(r) for r in c]
+        u = conn.execute("SELECT * FROM users LIMIT 1").fetchone()
+        if u:
+            user_sample = {k: (str(v)[:30] if k == 'password_hash' else v) for k, v in dict(u).items()}
+    except Exception as e:
+        cols = str(e)
+    finally:
+        conn.close()
 
     return jsonify({
         "status": "healthy",
         "app": "TrustVault",
-        "database": "postgresql" if is_postgres() else "sqlite",
+        "database": "postgresql" if is_pg else "sqlite",
         "storage": "supabase" if is_storage_configured() else "local",
         "users_columns": cols,
         "user_sample": user_sample
